@@ -1,0 +1,55 @@
+{
+  "name": "aura-lend",
+  "version": "0.1.0",
+  "description": "Autonomous lending protocol on Solana",
+  "main": "lib/index.js",
+  "scripts": {
+    "build": "anchor build",
+    "start": "anchor test --skip-local-validator",
+    "test": "anchor test",
+    "deploy": "anchor deploy",
+    "verify": "anchor verify",
+    "localnet": "solana-test-validator",
+    "sdk:build": "tsc -p tsconfig.json",
+    "sdk:watch": "tsc -p tsconfig.json --watch"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aura-lend/protocol"
+  },
+  "keywords": [
+    "solana",
+    "defi",
+    "lending",
+    "borrowing",
+    "anchor",
+    "rust"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@coral-xyz/anchor": "^0.30.1",
+    "@pythnetwork/client": "^2.21.0",
+    "@solana/spl-token": "^0.4.8",
+    "@solana/web3.js": "^1.95.2",
+    "@switchboard-xyz/on-demand": "^1.2.14",
+    "bn.js": "^5.2.1",
+    "buffer": "^6.0.3",
+    "decimal.js": "^10.4.3"
+  },
+  "devDependencies": {
+    "@types/bn.js": "^5.1.5",
+    "@types/chai": "^4.3.14",
+    "@types/mocha": "^10.0.6",
+    "@types/node": "^20.11.19",
+    "@typescript-eslint/eslint-plugin": "^6.21.0",
+    "@typescript-eslint/parser": "^6.21.0",
+    "chai": "^4.4.1",
+    "eslint": "^8.56.0",
+    "mocha": "^10.3.0",
+    "ts-mocha": "^10.0.0",
+    "typescript": "^5.9.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "compilerOptions": {
+    "types": ["mocha", "chai", "node"],
+    "typeRoots": ["./node_modules/@types"],
+    "lib": ["es2020", "dom"],
+    "module": "esnext",
+    "target": "es2020",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "moduleResolution": "node",
+    "baseUrl": "./",
+    "outDir": "./lib",
+    "rootDir": "./sdk",
+    "skipLibCheck": true,
+    "strict": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "resolveJsonModule": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "allowImportingTsExtensions": false,
+    "noEmit": false,
+    "paths": {
+      "@/*": ["./sdk/src/*"],
+      "@/types": ["./sdk/src/types.ts"],
+      "@/client": ["./sdk/src/client.ts"],
+      "@/idl/*": ["./sdk/src/idl/*"]
+    }
+  },
+  "include": [
+    "sdk/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "lib",
+    "programs",
+    "target"
+  ]
+}
