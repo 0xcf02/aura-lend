@@ -9,11 +9,17 @@ pub struct Market {
     /// Version of the market account structure
     pub version: u8,
     
-    /// The authority that can modify market parameters
-    pub owner: Pubkey,
+    /// The multisig wallet that controls market parameters
+    pub multisig_owner: Pubkey,
     
-    /// Emergency authority that can pause the protocol
+    /// Emergency authority that can pause the protocol (can be multisig or single key)
     pub emergency_authority: Pubkey,
+    
+    /// Governance registry for role-based access control
+    pub governance: Pubkey,
+    
+    /// Timelock controller for delayed operations
+    pub timelock_controller: Pubkey,
     
     /// Quote currency (typically USDC) mint for price calculations
     pub quote_currency: Pubkey,
@@ -44,8 +50,10 @@ impl Market {
     /// Size of the Market account in bytes
     pub const SIZE: usize = 8 + // discriminator
         1 + // version
-        32 + // owner
+        32 + // multisig_owner
         32 + // emergency_authority  
+        32 + // governance
+        32 + // timelock_controller
         32 + // quote_currency
         32 + // aura_token_mint
         32 + // aura_mint_authority
@@ -53,12 +61,14 @@ impl Market {
         8 + // total_fees_collected
         8 + // last_update_timestamp
         32 + // flags (MarketFlags is u32, but we use 32 bytes for alignment)
-        256; // reserved
+        192; // reserved (reduced to accommodate new fields)
 
     /// Create a new market with the given parameters
     pub fn new(
-        owner: Pubkey,
+        multisig_owner: Pubkey,
         emergency_authority: Pubkey,
+        governance: Pubkey,
+        timelock_controller: Pubkey,
         quote_currency: Pubkey,
         aura_token_mint: Pubkey,
         aura_mint_authority: Pubkey,
@@ -66,8 +76,10 @@ impl Market {
         let clock = Clock::get()?;
         Ok(Self {
             version: PROGRAM_VERSION,
-            owner,
+            multisig_owner,
             emergency_authority,
+            governance,
+            timelock_controller,
             quote_currency,
             aura_token_mint,
             aura_mint_authority,
@@ -75,7 +87,7 @@ impl Market {
             total_fees_collected: 0,
             last_update_timestamp: clock.unix_timestamp as u64,
             flags: MarketFlags::default(),
-            reserved: [0; 256],
+            reserved: [0; 192],
         })
     }
 
@@ -185,11 +197,13 @@ impl Default for MarketFlags {
     }
 }
 
-/// Parameters for initializing a market
+/// Parameters for initializing a market with RBAC
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct InitializeMarketParams {
-    pub owner: Pubkey,
+    pub multisig_owner: Pubkey,
     pub emergency_authority: Pubkey,
+    pub governance: Pubkey,
+    pub timelock_controller: Pubkey,
     pub quote_currency: Pubkey,
     pub aura_token_mint: Pubkey,
 }

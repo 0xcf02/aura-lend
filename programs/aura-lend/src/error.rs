@@ -143,4 +143,70 @@ pub enum LendingError {
     OperationInProgress,
     #[msg("Invalid unlock operation - not currently locked")]
     InvalidUnlockOperation,
+
+    // MultiSig errors
+    #[msg("Invalid multisig threshold")]
+    InvalidMultisigThreshold,
+    #[msg("Invalid signatory count")]
+    InvalidSignatoryCount,
+    #[msg("Duplicate signatory found")]
+    DuplicateSignatory,
+    #[msg("Invalid signatory")]
+    InvalidSignatory,
+    #[msg("Multisig threshold not met")]
+    MultisigThresholdNotMet,
+    #[msg("Already signed this proposal")]
+    AlreadySigned,
+    #[msg("Invalid nonce")]
+    InvalidNonce,
+    #[msg("Proposal not active")]
+    ProposalNotActive,
+    #[msg("Proposal expired")]
+    ProposalExpired,
+    #[msg("Proposal not executed")]
+    ProposalNotExecuted,
+    #[msg("Invalid operation type")]
+    InvalidOperationType,
+    #[msg("Unauthorized cancellation")]
+    UnauthorizedCancellation,
+    #[msg("Instruction too large")]
+    InstructionTooLarge,
+
+    // Timelock errors
+    #[msg("Timelock not ready for execution")]
+    TimelockNotReady,
+    #[msg("Too many active proposals")]
+    TooManyActiveProposals,
+    #[msg("Proposal already active")]
+    ProposalAlreadyActive,
+    #[msg("Proposal not found")]
+    ProposalNotFound,
+    #[msg("Proposal not pending")]
+    ProposalNotPending,
+    #[msg("Delay too short for operation type")]
+    DelayTooShort,
+    #[msg("Too many target accounts")]
+    TooManyTargetAccounts,
+
+    // Governance/Role errors
+    #[msg("Too many roles")]
+    TooManyRoles,
+    #[msg("Account already has active role")]
+    AccountAlreadyHasRole,
+    #[msg("Invalid permissions")]
+    InvalidPermissions,
+    #[msg("Insufficient permissions")]
+    InsufficientPermissions,
+    #[msg("Role not found")]
+    RoleNotFound,
+    #[msg("Role expired")]
+    RoleExpired,
+    #[msg("Cannot delegate permissions not held")]
+    CannotDelegatePermissionsNotHeld,
+    #[msg("Emergency role must have expiration")]
+    EmergencyRoleMustHaveExpiration,
+    #[msg("Emergency role duration too long")]
+    EmergencyRoleTooLong,
+    #[msg("Invalid emergency permissions")]
+    InvalidEmergencyPermissions,
 }
