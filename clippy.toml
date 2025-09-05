@@ -1,0 +1,58 @@
+# Clippy configuration for Aura Lend Protocol
+# Static analysis configuration for Rust code
+
+# Complexity thresholds
+cognitive-complexity-threshold = 30
+type-complexity-threshold = 250
+too-many-arguments-threshold = 8
+too-many-lines-threshold = 200
+large-error-threshold = 128
+
+# Allow certain patterns common in Solana/Anchor development
+allow = [
+    # Blockchain development often requires specific numeric values
+    "clippy::unreadable_literal",
+    "clippy::excessive_precision",
+    
+    # Anchor macros generate code that may trigger these
+    "clippy::derive_partial_eq_without_eq",
+    "clippy::redundant_field_names",
+    
+    # Common in financial calculations
+    "clippy::cast_precision_loss",
+    "clippy::cast_possible_truncation",
+    "clippy::cast_sign_loss",
+    
+    # Allow in specific contexts
+    "clippy::module_name_repetitions",
+    "clippy::similar_names",
+]
+
+# Deny potentially dangerous patterns
+deny = [
+    "clippy::integer_overflow",
+    "clippy::float_arithmetic",
+    "clippy::indexing_slicing",
+    "clippy::unwrap_used",
+    "clippy::expect_used",
+    "clippy::panic",
+    "clippy::unreachable",
+    "clippy::todo",
+    "clippy::unimplemented",
+]
+
+# Warn on performance and correctness issues
+warn = [
+    "clippy::pedantic",
+    "clippy::nursery",
+    "clippy::cargo",
+    "clippy::performance",
+    "clippy::correctness",
+    "clippy::complexity",
+    "clippy::style",
+    "clippy::suspicious",
+]
+
+# Documentation requirements
+missing-docs-in-private-items = false  # Allow private items without docs
+doc-valid-idents = ["DeFi", "Solana", "Anchor", "SPL", "USDC", "USDT", "SOL", "aToken", "LTV"]

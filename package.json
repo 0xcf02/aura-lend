@@ -11,7 +11,17 @@
     "verify": "anchor verify",
     "localnet": "solana-test-validator",
     "sdk:build": "tsc -p tsconfig.json",
-    "sdk:watch": "tsc -p tsconfig.json --watch"
+    "sdk:watch": "tsc -p tsconfig.json --watch",
+    "lint": "eslint sdk/src tests --ext .ts,.js",
+    "lint:fix": "eslint sdk/src tests --ext .ts,.js --fix",
+    "format": "prettier --write \"**/*.{ts,js,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,js,json,md}\"",
+    "rust:format": "cargo fmt --all",
+    "rust:format:check": "cargo fmt --all -- --check",
+    "rust:clippy": "cargo clippy --all-targets --all-features -- -D warnings",
+    "rust:clippy:fix": "cargo clippy --all-targets --all-features --fix",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf lib target node_modules/.cache"
   },
   "repository": {
     "type": "git",

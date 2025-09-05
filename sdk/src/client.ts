@@ -1,40 +1,91 @@
+// External dependencies
 import {
-  Connection,
-  PublicKey,
-  Keypair,
-  Transaction,
   Commitment,
+  Connection,
+  Keypair,
+  PublicKey,
   SendOptions,
+  Transaction,
 } from '@solana/web3.js';
-import { AnchorProvider, Program, Wallet, Idl } from '@coral-xyz/anchor';
-import { getAssociatedTokenAddressSync, createAssociatedTokenAccountInstruction, ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import { AnchorProvider, Program, Wallet } from '@coral-xyz/anchor';
+import {
+  createAssociatedTokenAccountInstruction,
+  getAssociatedTokenAddressSync,
+} from '@solana/spl-token';
 
+// Internal imports
 import { AuraLend, IDL } from './idl/aura_lend';
-import { MarketInstructions } from './instructions/market';
-import { LendingInstructions } from './instructions/lending';
 import { BorrowingInstructions } from './instructions/borrowing';
+import { LendingInstructions } from './instructions/lending';
 import { LiquidationInstructions } from './instructions/liquidation';
-import { Market, Reserve, Obligation } from './state';
+import { MarketInstructions } from './instructions/market';
+import { Market, Obligation, Reserve } from './state';
 
+/**
+ * Configuration interface for initializing the AuraLendClient
+ */
 export interface AuraLendClientConfig {
+  /** Solana RPC connection instance */
   connection: Connection;
+  /** Wallet instance for signing transactions */
   wallet: Wallet;
+  /** Program ID of the AuraLend protocol */
   programId: PublicKey;
+  /** Transaction commitment level (defaults to 'confirmed') */
   commitment?: Commitment;
 }
 
+/**
+ * Main client for interacting with the Aura Lend Protocol
+ * 
+ * Provides a high-level interface for all protocol operations including:
+ * - Market management and configuration
+ * - Lending operations (deposit/withdraw)
+ * - Borrowing operations (borrow/repay)
+ * - Liquidation mechanisms
+ * - Account state queries and PDA derivations
+ * 
+ * @example
+ * ```typescript
+ * const client = new AuraLendClient({
+ *   connection: new Connection('https://api.devnet.solana.com'),
+ *   wallet: new Wallet(keypair),
+ *   programId: new PublicKey('AuRa1Lend1111111111111111111111111111111111')
+ * });
+ * 
+ * // Deposit liquidity
+ * await client.lending.depositLiquidity({
+ *   reserve: usdcReserve,
+ *   amount: 1000_000_000, // 1000 USDC
+ *   userTokenAccount: userUsdcAccount,
+ *   userCollateralAccount: userAusdcAccount
+ * });
+ * ```
+ */
 export class AuraLendClient {
+  /** Solana RPC connection instance */
   public readonly connection: Connection;
+  /** Wallet instance for signing transactions */
   public readonly wallet: Wallet;
+  /** Anchor program instance for the AuraLend protocol */
   public readonly program: Program;
+  /** Program ID of the AuraLend protocol */
   public readonly programId: PublicKey;
 
-  // Instruction builders
+  /** Market instruction builder for market operations */
   public readonly market: MarketInstructions;
+  /** Lending instruction builder for deposit/withdraw operations */
   public readonly lending: LendingInstructions;
+  /** Borrowing instruction builder for borrow/repay operations */
   public readonly borrowing: BorrowingInstructions;
+  /** Liquidation instruction builder for liquidation operations */
   public readonly liquidation: LiquidationInstructions;
 
+  /**
+   * Creates a new AuraLendClient instance
+   * 
+   * @param config - Client configuration options
+   */
   constructor(config: AuraLendClientConfig) {
     this.connection = config.connection;
     this.wallet = config.wallet;
@@ -62,7 +113,14 @@ export class AuraLendClient {
     this.liquidation = new LiquidationInstructions(this);
   }
 
-  // Convenience method to send transactions
+  /**
+   * Sends and confirms a transaction with proper error handling
+   * 
+   * @param transaction - Transaction to send
+   * @param signers - Additional signers required for the transaction (wallet is automatically included)
+   * @param options - Send options for the transaction
+   * @returns Transaction signature
+   */
   async sendAndConfirmTransaction(
     transaction: Transaction,
     signers: Keypair[] = [],
@@ -78,7 +136,12 @@ export class AuraLendClient {
     return signature;
   }
 
-  // Market operations
+  /**
+   * Retrieves market account data
+   * 
+   * @param marketPubkey - Optional market public key (defaults to derived market PDA)
+   * @returns Market account data or null if not found
+   */
   async getMarket(marketPubkey?: PublicKey): Promise<Market | null> {
     const marketKey = marketPubkey || this.getMarketAddress();
     
@@ -92,6 +155,12 @@ export class AuraLendClient {
     }
   }
 
+  /**
+   * Retrieves reserve account data for a given mint
+   * 
+   * @param mint - The mint address of the token
+   * @returns Reserve account data or null if not found
+   */
   async getReserve(mint: PublicKey): Promise<Reserve | null> {
     const reserveKey = this.getReserveAddress(mint);
     
@@ -105,6 +174,12 @@ export class AuraLendClient {
     }
   }
 
+  /**
+   * Retrieves obligation account data for a given owner
+   * 
+   * @param owner - The owner's public key
+   * @returns Obligation account data or null if not found
+   */
   async getObligation(owner: PublicKey): Promise<Obligation | null> {
     const obligationKey = this.getObligationAddress(owner);
     
@@ -118,6 +193,11 @@ export class AuraLendClient {
     }
   }
 
+  /**
+   * Retrieves all reserve accounts from the program
+   * 
+   * @returns Array of all reserve accounts
+   */
   async getAllReserves(): Promise<Reserve[]> {
     const programAccounts = await this.connection.getProgramAccounts(
       this.programId,
@@ -133,6 +213,11 @@ export class AuraLendClient {
     );
   }
 
+  /**
+   * Retrieves all obligation accounts from the program
+   * 
+   * @returns Array of all obligation accounts
+   */
   async getAllObligations(): Promise<Obligation[]> {
     const programAccounts = await this.connection.getProgramAccounts(
       this.programId,
@@ -148,7 +233,11 @@ export class AuraLendClient {
     );
   }
 
-  // PDA derivation helpers
+  /**
+   * Derives the market PDA address
+   * 
+   * @returns The market account public key
+   */
   getMarketAddress(): PublicKey {
     const [marketPda] = PublicKey.findProgramAddressSync(
       [Buffer.from('market')],
@@ -157,6 +246,12 @@ export class AuraLendClient {
     return marketPda;
   }
 
+  /**
+   * Derives the reserve PDA address for a given liquidity mint
+   * 
+   * @param liquidityMint - The liquidity token mint address
+   * @returns The reserve account public key
+   */
   getReserveAddress(liquidityMint: PublicKey): PublicKey {
     const [reservePda] = PublicKey.findProgramAddressSync(
       [Buffer.from('reserve'), liquidityMint.toBuffer()],
@@ -165,6 +260,12 @@ export class AuraLendClient {
     return reservePda;
   }
 
+  /**
+   * Derives the obligation PDA address for a given owner
+   * 
+   * @param owner - The obligation owner's public key
+   * @returns The obligation account public key
+   */
   getObligationAddress(owner: PublicKey): PublicKey {
     const [obligationPda] = PublicKey.findProgramAddressSync(
       [Buffer.from('obligation'), owner.toBuffer()],
@@ -173,6 +274,12 @@ export class AuraLendClient {
     return obligationPda;
   }
 
+  /**
+   * Derives the collateral mint PDA address for a given liquidity mint
+   * 
+   * @param liquidityMint - The liquidity token mint address
+   * @returns The collateral mint public key
+   */
   getCollateralMintAddress(liquidityMint: PublicKey): PublicKey {
     const [collateralMintPda] = PublicKey.findProgramAddressSync(
       [Buffer.from('collateral'), liquidityMint.toBuffer()],
@@ -181,6 +288,12 @@ export class AuraLendClient {
     return collateralMintPda;
   }
 
+  /**
+   * Derives the liquidity supply token account PDA address
+   * 
+   * @param liquidityMint - The liquidity token mint address
+   * @returns The liquidity supply token account public key
+   */
   getLiquiditySupplyAddress(liquidityMint: PublicKey): PublicKey {
     const [liquiditySupplyPda] = PublicKey.findProgramAddressSync(
       [Buffer.from('liquidity'), liquidityMint.toBuffer()],
@@ -189,6 +302,12 @@ export class AuraLendClient {
     return liquiditySupplyPda;
   }
 
+  /**
+   * Derives the collateral mint authority PDA address
+   * 
+   * @param liquidityMint - The liquidity token mint address
+   * @returns The collateral mint authority public key
+   */
   getCollateralMintAuthorityAddress(liquidityMint: PublicKey): PublicKey {
     const [authorityPda] = PublicKey.findProgramAddressSync(
       [Buffer.from('collateral'), liquidityMint.toBuffer(), Buffer.from('authority')],
@@ -197,6 +316,12 @@ export class AuraLendClient {
     return authorityPda;
   }
 
+  /**
+   * Derives the liquidity supply authority PDA address
+   * 
+   * @param liquidityMint - The liquidity token mint address
+   * @returns The liquidity supply authority public key
+   */
   getLiquiditySupplyAuthorityAddress(liquidityMint: PublicKey): PublicKey {
     const [authorityPda] = PublicKey.findProgramAddressSync(
       [Buffer.from('liquidity'), liquidityMint.toBuffer(), Buffer.from('authority')],
@@ -205,7 +330,12 @@ export class AuraLendClient {
     return authorityPda;
   }
 
-  // Token helper methods
+  /**
+   * Gets the token balance of a token account
+   * 
+   * @param tokenAccount - The token account public key
+   * @returns The token balance in UI amount (with decimals applied)
+   */
   async getTokenBalance(tokenAccount: PublicKey): Promise<number> {
     try {
       const accountInfo = await this.connection.getTokenAccountBalance(tokenAccount);
@@ -215,6 +345,13 @@ export class AuraLendClient {
     }
   }
 
+  /**
+   * Creates an Associated Token Account if it doesn't exist
+   * 
+   * @param mint - The token mint address
+   * @param owner - The token account owner (defaults to wallet public key)
+   * @returns The Associated Token Account public key
+   */
   async createAssociatedTokenAccount(
     mint: PublicKey,
     owner: PublicKey = this.wallet.publicKey
@@ -239,7 +376,17 @@ export class AuraLendClient {
     return ata;
   }
 
-  // Utility methods for calculations
+  /**
+   * Calculates the health factor for a position
+   * 
+   * Health factor = (collateral value * liquidation threshold) / borrowed value
+   * A health factor < 1.0 indicates the position can be liquidated
+   * 
+   * @param collateralValueUSD - Total collateral value in USD
+   * @param borrowedValueUSD - Total borrowed value in USD
+   * @param liquidationThreshold - Liquidation threshold (as decimal, e.g., 0.8 for 80%)
+   * @returns Health factor (higher is safer, < 1.0 = liquidatable)
+   */
   static calculateHealthFactor(
     collateralValueUSD: number,
     borrowedValueUSD: number,
@@ -249,6 +396,14 @@ export class AuraLendClient {
     return (collateralValueUSD * liquidationThreshold) / borrowedValueUSD;
   }
 
+  /**
+   * Calculates the maximum amount that can be borrowed against collateral
+   * 
+   * @param collateralValueUSD - Total collateral value in USD
+   * @param loanToValueRatio - Loan-to-value ratio (as decimal, e.g., 0.75 for 75%)
+   * @param currentBorrowedValueUSD - Current borrowed value in USD (defaults to 0)
+   * @returns Maximum additional borrow amount in USD
+   */
   static calculateMaxBorrowAmount(
     collateralValueUSD: number,
     loanToValueRatio: number,
@@ -258,6 +413,16 @@ export class AuraLendClient {
     return Math.max(0, maxBorrow - currentBorrowedValueUSD);
   }
 
+  /**
+   * Calculates the liquidation price for a collateral asset
+   * 
+   * This is the price at which the collateral asset would trigger liquidation
+   * 
+   * @param collateralAmount - Amount of collateral tokens
+   * @param borrowedAmount - Amount of borrowed value in USD
+   * @param liquidationThreshold - Liquidation threshold (as decimal, e.g., 0.8 for 80%)
+   * @returns Liquidation price in USD per collateral token
+   */
   static calculateLiquidationPrice(
     collateralAmount: number,
     borrowedAmount: number,

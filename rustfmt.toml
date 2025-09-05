@@ -1,0 +1,46 @@
+# Rust formatting configuration for Aura Lend
+edition = "2021"
+max_width = 100
+hard_tabs = false
+tab_spaces = 4
+newline_style = "Unix"
+use_small_heuristics = "Default"
+
+# Import organization
+imports_granularity = "Crate"
+reorder_imports = true
+reorder_modules = true
+
+# Code structure
+fn_args_layout = "Tall"
+brace_style = "SameLineWhere"
+control_brace_style = "AlwaysSameLine"
+indent_style = "Block"
+
+# Comments and documentation
+comment_width = 80
+doc_comment_code_block_width = 100
+format_code_in_doc_comments = true
+normalize_comments = true
+normalize_doc_attributes = true
+
+# Strings and arrays
+format_strings = true
+array_width = 60
+chain_width = 60
+single_line_if_else_max_width = 50
+
+# Miscellaneous
+remove_nested_parens = true
+use_field_init_shorthand = true
+force_explicit_abi = true
+format_macro_matchers = true
+format_macro_bodies = true
+
+# Anchor framework specific
+# Allow longer lines for anchor macros and attributes
+attr_fn_like_width = 120
+
+# Error handling
+error_on_line_overflow = false
+error_on_unformatted = false

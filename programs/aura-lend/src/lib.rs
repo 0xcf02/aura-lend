@@ -1,10 +1,11 @@
 use anchor_lang::prelude::*;
 
+// Module declarations in alphabetical order
+pub mod constants;
+pub mod error;
 pub mod instructions;
 pub mod state;
-pub mod error;
 pub mod utils;
-pub mod constants;
 
 use instructions::*;
 
