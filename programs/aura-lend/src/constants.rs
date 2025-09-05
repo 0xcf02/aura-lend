@@ -1,40 +1,48 @@
 use anchor_lang::prelude::*;
 
-// Program constants
+/// Current program version for upgrade compatibility
 pub const PROGRAM_VERSION: u8 = 1;
 
-// Seeds for PDA derivation  
+/// Seeds used for Program Derived Address (PDA) generation
 pub const MARKET_SEED: &[u8] = b"market";
 pub const RESERVE_SEED: &[u8] = b"reserve";
 pub const OBLIGATION_SEED: &[u8] = b"obligation";
 pub const COLLATERAL_TOKEN_SEED: &[u8] = b"collateral";
 pub const LIQUIDITY_TOKEN_SEED: &[u8] = b"liquidity";
 
-// Market configuration limits
+/// Maximum number of reserves allowed in a single market
 pub const MAX_RESERVES: usize = 32;
+/// Maximum number of obligations that can be tracked
 pub const MAX_OBLIGATIONS: usize = 1000;
 
-// Precision constants for calculations
-pub const PRECISION: u64 = 1_000_000_000_000_000_000; // 18 decimals (1e18)
-pub const PERCENT_PRECISION: u64 = 10_000; // 4 decimals (100%)
-pub const BASIS_POINTS_PRECISION: u64 = 10_000; // 4 decimals
+/// High precision constant for financial calculations (18 decimal places)
+pub const PRECISION: u64 = 1_000_000_000_000_000_000; // 1e18
+/// Precision for percentage calculations (4 decimal places, 100% = 10,000)
+pub const PERCENT_PRECISION: u64 = 10_000;
+/// Precision for basis points calculations (1 bp = 1/10,000)
+pub const BASIS_POINTS_PRECISION: u64 = 10_000;
 
-// Math safety constants
-pub const MAX_SAFE_VALUE: u128 = u128::MAX / 1_000_000; // Safe upper bound for calculations
-pub const MIN_SAFE_VALUE: u128 = 1; // Minimum value to prevent underflow
+/// Maximum safe value for calculations to prevent overflow
+pub const MAX_SAFE_VALUE: u128 = u128::MAX / 1_000_000;
+/// Minimum safe value to prevent underflow in calculations
+pub const MIN_SAFE_VALUE: u128 = 1;
 
-// Interest rate constants
+/// Number of seconds in a year for interest rate calculations
 pub const SECONDS_PER_YEAR: u64 = 365 * 24 * 3600; // 31,536,000
-pub const SLOTS_PER_YEAR: u64 = SECONDS_PER_YEAR * 2; // ~2 slots per second on Solana
+/// Approximate number of slots per year on Solana (~2 slots/second)
+pub const SLOTS_PER_YEAR: u64 = SECONDS_PER_YEAR * 2;
 
-// Collateral and liquidation parameters
-pub const MAX_LIQUIDATION_BONUS_BPS: u64 = 5000; // 50%
-pub const MIN_LIQUIDATION_THRESHOLD_BPS: u64 = 1000; // 10%
-pub const MAX_LOAN_TO_VALUE_RATIO_BPS: u64 = 9000; // 90%
+/// Maximum liquidation bonus that can be set (50%)
+pub const MAX_LIQUIDATION_BONUS_BPS: u64 = 5000;
+/// Minimum liquidation threshold that can be set (10%)
+pub const MIN_LIQUIDATION_THRESHOLD_BPS: u64 = 1000;
+/// Maximum loan-to-value ratio allowed (90%)
+pub const MAX_LOAN_TO_VALUE_RATIO_BPS: u64 = 9000;
 
-// Oracle staleness limits (in slots)
-pub const MAX_ORACLE_STALENESS_SLOTS: u64 = 240; // ~2 minutes
-pub const EMERGENCY_ORACLE_STALENESS_SLOTS: u64 = 21600; // ~3 hours
+/// Maximum age of oracle data in slots before considered stale (~2 minutes)
+pub const MAX_ORACLE_STALENESS_SLOTS: u64 = 240;
+/// Emergency oracle staleness limit for extreme situations (~3 hours)
+pub const EMERGENCY_ORACLE_STALENESS_SLOTS: u64 = 21600;
 
 // Time manipulation protection
 pub const MIN_INTEREST_UPDATE_INTERVAL: u64 = 60; // 1 minute minimum between updates
