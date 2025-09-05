@@ -10,6 +10,11 @@ pub const OBLIGATION_SEED: &[u8] = b"obligation";
 pub const COLLATERAL_TOKEN_SEED: &[u8] = b"collateral";
 pub const LIQUIDITY_TOKEN_SEED: &[u8] = b"liquidity";
 
+/// RBAC system seeds
+pub const MULTISIG_SEED: &[u8] = b"multisig";
+pub const TIMELOCK_SEED: &[u8] = b"timelock";
+pub const GOVERNANCE_SEED: &[u8] = b"governance";
+
 /// Maximum number of reserves allowed in a single market
 pub const MAX_RESERVES: usize = 32;
 /// Maximum number of obligations that can be tracked
@@ -110,3 +115,39 @@ pub const OBLIGATION_SIZE: usize = 8 + // discriminator
 
 // Maximum number of deposits and borrows per obligation
 pub const MAX_OBLIGATION_RESERVES: usize = 8;
+
+// RBAC Timelock delays (in seconds)
+/// Critical operations - 7 days
+pub const TIMELOCK_DELAY_CRITICAL: u64 = 7 * 24 * 3600; // 604,800 seconds
+/// High priority operations - 3 days  
+pub const TIMELOCK_DELAY_HIGH: u64 = 3 * 24 * 3600; // 259,200 seconds
+/// Medium priority operations - 1 day
+pub const TIMELOCK_DELAY_MEDIUM: u64 = 24 * 3600; // 86,400 seconds
+/// Low priority operations - 6 hours
+pub const TIMELOCK_DELAY_LOW: u64 = 6 * 3600; // 21,600 seconds
+/// Default delay for unspecified operations
+pub const TIMELOCK_DELAY_DEFAULT: u64 = TIMELOCK_DELAY_MEDIUM;
+
+// Minimum delays (cannot be set lower than these)
+pub const TIMELOCK_MIN_CRITICAL_DELAY: u64 = 3 * 24 * 3600; // 3 days minimum
+pub const TIMELOCK_MIN_HIGH_DELAY: u64 = 24 * 3600; // 1 day minimum
+pub const TIMELOCK_MIN_STANDARD_DELAY: u64 = 3600; // 1 hour minimum
+
+// Timelock expiry period - proposals expire if not executed within this time after execution_time
+pub const TIMELOCK_EXPIRY_PERIOD: i64 = 30 * 24 * 3600; // 30 days
+
+// Emergency role constraints
+/// Maximum duration for emergency roles (24 hours)
+pub const EMERGENCY_ROLE_MAX_DURATION: i64 = 24 * 3600;
+
+// MultSig constraints
+/// Maximum number of signatories in a multisig
+pub const MAX_MULTISIG_SIGNATORIES: usize = 10;
+/// Minimum threshold for multisig
+pub const MIN_MULTISIG_THRESHOLD: u8 = 1;
+
+// Governance constraints
+/// Maximum number of concurrent roles per registry
+pub const MAX_GOVERNANCE_ROLES: usize = 50;
+/// Default role expiration (1 year)
+pub const DEFAULT_ROLE_EXPIRATION: i64 = 365 * 24 * 3600;
