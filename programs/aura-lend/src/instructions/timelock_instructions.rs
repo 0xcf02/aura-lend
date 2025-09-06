@@ -171,7 +171,7 @@ pub fn update_timelock_delays(
 pub fn cleanup_expired_proposals(
     ctx: Context<CleanupExpiredProposals>,
 ) -> Result<()> {
-    let timelock = &mut ctx.accounts.timelock;
+    let _timelock = &mut ctx.accounts.timelock;
     let governance = &ctx.accounts.governance;
     let executor = &ctx.accounts.executor;
     

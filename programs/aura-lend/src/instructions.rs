@@ -6,6 +6,8 @@ pub mod oracle_instructions;
 pub mod multisig_instructions;
 pub mod timelock_instructions;
 pub mod governance_instructions;
+pub mod upgrade_instructions;
+pub mod migration_instructions;
 
 // Re-export all instructions and their context structs
 pub use market_instructions::*;
@@ -16,3 +18,5 @@ pub use oracle_instructions::*;
 pub use multisig_instructions::*;
 pub use timelock_instructions::*;
 pub use governance_instructions::*;
+pub use upgrade_instructions::*;
+pub use migration_instructions::*;

@@ -143,12 +143,18 @@ pub struct OracleManager;
 impl OracleManager {
     /// Get price from Pyth price update account
     pub fn get_pyth_price(
-        price_update_account: &AccountInfo,
-        feed_id: &[u8; 32],
+        _price_update_account: &AccountInfo,
+        _feed_id: &[u8; 32],
     ) -> Result<OraclePrice> {
+        // TODO: Fix deserialize method when Pyth SDK is properly configured
+        return Err(LendingError::OracleAccountMismatch.into());
+        
+        /*
         let price_update = PriceUpdateV2::try_deserialize(&mut price_update_account.data.borrow().as_ref())
             .map_err(|_| LendingError::OracleAccountMismatch)?;
+        */
 
+        /*
         // Verify the price update
         if price_update.verification_level != VerificationLevel::Full {
             return Err(LendingError::OraclePriceInvalid.into());
@@ -167,6 +173,7 @@ impl OracleManager {
             exponent: price_feed.price.exponent,
             publish_time: price_feed.price.publish_time,
         })
+        */
     }
 
     /// Calculate asset value in USD using oracle price

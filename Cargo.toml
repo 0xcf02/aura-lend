@@ -1,8 +1,6 @@
 [workspace]
 members = [
     "programs/aura-lend",
-    "programs/liquidation-engine",
-    "programs/rewards-distributor",
 ]
 resolver = "2"
 

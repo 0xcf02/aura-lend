@@ -6,7 +6,6 @@ use crate::error::LendingError;
 /// Reserve state account for each supported asset
 /// Contains all information about a specific asset's lending pool
 #[account]
-#[derive(Default)]
 pub struct Reserve {
     /// Version of the reserve account structure
     pub version: u8,
@@ -147,14 +146,14 @@ impl Reserve {
         // Update borrow interest
         if !borrow_rate.is_zero() && self.state.total_borrows > 0 {
             let borrow_interest = Rate::compound_interest(
-                Decimal::from_integer(self.state.total_borrows),
+                Decimal::from_integer(self.state.total_borrows)?,
                 borrow_rate,
                 SLOTS_PER_YEAR / 365, // Daily compounding
                 time_fraction,
             )?;
             
-            let interest_earned = borrow_interest.try_sub(Decimal::from_integer(self.state.total_borrows))?;
-            let interest_amount = interest_earned.try_floor_u64()?;
+            let interest_earned = borrow_interest.try_sub(Decimal::from_integer(self.state.total_borrows)?)?;
+            let _interest_amount = interest_earned.try_floor_u64()?;
             
             self.state.total_borrows = borrow_interest.try_floor_u64()?;
             
@@ -168,7 +167,7 @@ impl Reserve {
         // Update supply interest (collateral exchange rate)
         if !supply_rate.is_zero() && self.state.total_liquidity > 0 {
             let supply_interest = Rate::compound_interest(
-                Decimal::from_integer(self.state.total_liquidity),
+                Decimal::from_integer(self.state.total_liquidity)?,
                 supply_rate,
                 SLOTS_PER_YEAR / 365, // Daily compounding
                 time_fraction,
@@ -198,7 +197,7 @@ impl Reserve {
         let total_liquidity = Decimal::from_integer(self.state.total_liquidity);
         let collateral_supply = Decimal::from_integer(self.state.collateral_mint_supply);
         
-        total_liquidity.try_div(collateral_supply)
+        total_liquidity?.try_div(collateral_supply?)
     }
 
     /// Calculate collateral tokens to mint for a liquidity deposit
@@ -210,7 +209,7 @@ impl Reserve {
         let exchange_rate = self.collateral_exchange_rate()?;
         let liquidity_decimal = Decimal::from_integer(liquidity_amount);
         
-        liquidity_decimal.try_div(exchange_rate)?.try_floor_u64()
+        liquidity_decimal?.try_div(exchange_rate)?.try_floor_u64()
     }
 
     /// Calculate liquidity tokens to withdraw for collateral redemption
@@ -218,7 +217,7 @@ impl Reserve {
         let exchange_rate = self.collateral_exchange_rate()?;
         let collateral_decimal = Decimal::from_integer(collateral_amount);
         
-        collateral_decimal.try_mul(exchange_rate)?.try_floor_u64()
+        collateral_decimal?.try_mul(exchange_rate)?.try_floor_u64()
     }
 
     /// Check if the reserve needs to be refreshed

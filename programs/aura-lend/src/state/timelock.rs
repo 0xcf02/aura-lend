@@ -4,7 +4,6 @@ use crate::error::LendingError;
 
 /// Timelock controller for delayed execution of critical operations
 #[account]
-#[derive(Default)]
 pub struct TimelockController {
     /// Version of the timelock controller
     pub version: u8,
@@ -68,6 +67,24 @@ impl TimelockController {
                 operation_type: TimelockOperationType::WithdrawFees,
                 delay_seconds: TIMELOCK_DELAY_LOW, // 6 hours
             },
+            // Program upgrade operations - critical delays
+            TimelockDelay {
+                operation_type: TimelockOperationType::ProgramUpgrade,
+                delay_seconds: TIMELOCK_DELAY_CRITICAL, // 7 days
+            },
+            TimelockDelay {
+                operation_type: TimelockOperationType::SetUpgradeAuthority,
+                delay_seconds: TIMELOCK_DELAY_CRITICAL, // 7 days
+            },
+            TimelockDelay {
+                operation_type: TimelockOperationType::FreezeProgram,
+                delay_seconds: TIMELOCK_DELAY_CRITICAL, // 7 days
+            },
+            // Data migration operations - high priority
+            TimelockDelay {
+                operation_type: TimelockOperationType::DataMigration,
+                delay_seconds: TIMELOCK_DELAY_HIGH, // 3 days
+            },
         ];
         
         Ok(Self {
@@ -116,7 +133,6 @@ impl TimelockController {
 
 /// Timelock proposal with delayed execution
 #[account]
-#[derive(Default)]
 pub struct TimelockProposal {
     /// Version of the proposal
     pub version: u8,
@@ -289,6 +305,14 @@ pub enum TimelockOperationType {
     GrantRole,
     /// Revoke administrative role (medium - 1 day)
     RevokeRole,
+    /// Program upgrade (critical - 7 days)
+    ProgramUpgrade,
+    /// Set upgrade authority (critical - 7 days)
+    SetUpgradeAuthority,
+    /// Freeze program permanently (critical - 7 days)
+    FreezeProgram,
+    /// Data migration operations (high - 3 days)
+    DataMigration,
 }
 
 impl Default for TimelockOperationType {

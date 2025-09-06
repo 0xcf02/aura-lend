@@ -4,7 +4,6 @@ use crate::error::LendingError;
 
 /// Governance system for role-based access control
 #[account]
-#[derive(Default)]
 pub struct GovernanceRegistry {
     /// Version of the governance registry
     pub version: u8,
@@ -50,7 +49,9 @@ impl GovernanceRegistry {
             Permission::EMERGENCY_RESPONDER.bits() |
             Permission::FEE_MANAGER.bits() |
             Permission::GOVERNANCE_MANAGER.bits() |
-            Permission::TIMELOCK_MANAGER.bits();
+            Permission::TIMELOCK_MANAGER.bits() |
+            Permission::PROGRAM_UPGRADE_MANAGER.bits() |
+            Permission::DATA_MIGRATION_MANAGER.bits();
         
         Ok(Self {
             version: PROGRAM_VERSION,
@@ -186,7 +187,7 @@ impl GovernanceRole {
 }
 
 /// Types of roles that can be assigned
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, Debug)]
 pub enum RoleType {
     /// Super administrator with all permissions
     SuperAdmin,
@@ -204,6 +205,10 @@ pub enum RoleType {
     GovernanceManager,
     /// Can manage timelock proposals
     TimelockManager,
+    /// Can manage program upgrades
+    ProgramUpgradeManager,
+    /// Can perform data migrations
+    DataMigrationManager,
 }
 
 impl Default for RoleType {
@@ -251,6 +256,12 @@ impl Permission {
     
     /// Can execute liquidations (for automated liquidators)
     pub const LIQUIDATION_MANAGER: Self = Self { bits: 1 << 9 };
+    
+    /// Can manage program upgrades and upgrade authority
+    pub const PROGRAM_UPGRADE_MANAGER: Self = Self { bits: 1 << 10 };
+    
+    /// Can perform data migrations between versions
+    pub const DATA_MIGRATION_MANAGER: Self = Self { bits: 1 << 11 };
 
     /// Get the bits value
     pub fn bits(&self) -> u64 {

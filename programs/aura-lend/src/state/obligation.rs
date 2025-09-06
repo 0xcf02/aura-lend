@@ -5,7 +5,6 @@ use crate::error::LendingError;
 
 /// User obligation account - tracks collateral deposits and borrows
 #[account]
-#[derive(Default)]
 pub struct Obligation {
     /// Version of the obligation account structure
     pub version: u8,
@@ -69,7 +68,8 @@ impl Obligation {
             borrowed_value_usd: Decimal::zero(),
             last_update_timestamp: clock.unix_timestamp as u64,
             last_update_slot: clock.slot,
-            reserved: [0; 128],
+            liquidation_snapshot_health_factor: None,
+            reserved: [0; 112],
         })
     }
 
@@ -266,16 +266,16 @@ impl Obligation {
     }
 
     /// Refresh health factor with current oracle prices to prevent race conditions
-    pub fn refresh_health_factor(&mut self, price_oracles: &[AccountInfo], current_timestamp: i64) -> Result<()> {
+    pub fn refresh_health_factor(&mut self, _price_oracles: &[AccountInfo], current_timestamp: i64) -> Result<()> {
         // Refresh all collateral values with current prices
-        for deposit in &mut self.deposits {
+        for _deposit in &mut self.deposits {
             // Get current price from oracle (implementation would be specific to oracle type)
             // This is a placeholder - actual implementation would fetch from price_oracles
             // based on the reserve's oracle configuration
         }
 
         // Refresh all borrow values with current interest rates
-        for borrow in &mut self.borrows {
+        for _borrow in &mut self.borrows {
             // Update borrowed amounts with accrued interest
             // This is a placeholder for interest accrual calculation
         }

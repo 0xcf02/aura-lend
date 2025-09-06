@@ -206,7 +206,7 @@ impl TokenUtils {
 
     /// Validate that the token program is the expected SPL Token program
     pub fn validate_token_program(token_program: &AccountInfo) -> Result<()> {
-        if token_program.key() != &spl_token::ID {
+        if token_program.key() != spl_token::ID {
             return Err(LendingError::InvalidTokenProgram.into());
         }
         Ok(())
