@@ -4,10 +4,17 @@ use anchor_lang::prelude::*;
 pub mod constants;
 pub mod error;
 pub mod instructions;
+pub mod migration;
 pub mod state;
 pub mod utils;
 
 use instructions::*;
+use state::market::InitializeMarketParams;
+use state::multisig::{InitializeMultisigParams, CreateProposalParams};
+use state::timelock::CreateTimelockProposalParams;
+use state::governance::{InitializeGovernanceParams, GrantRoleParams};
+use state::reserve::{InitializeReserveParams, UpdateReserveConfigParams};
+use state::timelock::TimelockDelay;
 
 declare_id!("AuRa1Lend1111111111111111111111111111111111");
 
@@ -229,5 +236,47 @@ pub mod aura_lend {
 
     pub fn refresh_obligation(ctx: Context<RefreshObligation>) -> Result<()> {
         instructions::refresh_obligation(ctx)
+    }
+
+    // Program upgrade operations
+    pub fn set_upgrade_authority(ctx: Context<SetUpgradeAuthority>) -> Result<()> {
+        instructions::set_upgrade_authority(ctx)
+    }
+
+    pub fn upgrade_program(ctx: Context<UpgradeProgram>) -> Result<()> {
+        instructions::upgrade_program(ctx)
+    }
+
+    pub fn freeze_program(ctx: Context<FreezeProgram>) -> Result<()> {
+        instructions::freeze_program(ctx)
+    }
+
+    // Data migration operations
+    pub fn migrate_market(ctx: Context<MigrateMarket>) -> Result<()> {
+        instructions::migrate_market(ctx)
+    }
+
+    pub fn migrate_reserve(ctx: Context<MigrateReserve>) -> Result<()> {
+        instructions::migrate_reserve(ctx)
+    }
+
+    pub fn migrate_obligation(ctx: Context<MigrateObligation>) -> Result<()> {
+        instructions::migrate_obligation(ctx)
+    }
+
+    pub fn migrate_multisig(ctx: Context<MigrateMultisig>) -> Result<()> {
+        instructions::migrate_multisig(ctx)
+    }
+
+    pub fn migrate_timelock(ctx: Context<MigrateTimelock>) -> Result<()> {
+        instructions::migrate_timelock(ctx)
+    }
+
+    pub fn migrate_governance(ctx: Context<MigrateGovernance>) -> Result<()> {
+        instructions::migrate_governance(ctx)
+    }
+
+    pub fn batch_migrate_reserves<'info>(ctx: Context<'_, '_, '_, 'info, BatchMigrateReserves<'info>>) -> Result<()> {
+        instructions::batch_migrate_reserves(ctx)
     }
 }

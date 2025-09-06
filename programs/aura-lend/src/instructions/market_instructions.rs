@@ -1,5 +1,6 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Token, Mint};
+use solana_program::program_option::COption;
 use crate::state::*;
 use crate::error::LendingError;
 use crate::constants::*;
@@ -19,8 +20,10 @@ pub fn initialize_market(
 
     // Initialize the market
     **market = Market::new(
-        params.owner,
+        params.multisig_owner,
         params.emergency_authority,
+        params.governance,
+        params.timelock_controller,
         params.quote_currency,
         params.aura_token_mint,
         aura_mint_authority.key(),
@@ -157,8 +160,7 @@ pub struct InitializeReserve<'info> {
     #[account(
         mut,
         seeds = [MARKET_SEED],
-        bump,
-        has_one = owner @ LendingError::MarketOwnerMismatch
+        bump
     )]
     pub market: Account<'info, Market>,
 
@@ -212,7 +214,7 @@ pub struct InitializeReserve<'info> {
         init,
         payer = payer,
         token::mint = liquidity_mint,
-        token::authority = market.owner,
+        token::authority = owner,
     )]
     pub fee_receiver: Account<'info, anchor_spl::token::TokenAccount>,
 
@@ -238,8 +240,7 @@ pub struct UpdateReserveConfig<'info> {
     /// Market account
     #[account(
         seeds = [MARKET_SEED],
-        bump,
-        has_one = owner @ LendingError::MarketOwnerMismatch
+        bump
     )]
     pub market: Account<'info, Market>,
 

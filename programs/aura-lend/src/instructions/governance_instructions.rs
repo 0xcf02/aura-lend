@@ -47,6 +47,8 @@ pub fn grant_role(
         RoleType::FeeManager => Permission::FEE_MANAGER.bits(),
         RoleType::GovernanceManager => Permission::GOVERNANCE_MANAGER.bits(),
         RoleType::TimelockManager => Permission::TIMELOCK_MANAGER.bits(),
+        RoleType::ProgramUpgradeManager => Permission::PROGRAM_UPGRADE_MANAGER.bits(),
+        RoleType::DataMigrationManager => Permission::DATA_MIGRATION_MANAGER.bits(),
     };
     
     // Use provided permissions or default to role permissions

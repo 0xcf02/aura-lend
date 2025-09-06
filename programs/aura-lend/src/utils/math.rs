@@ -4,9 +4,27 @@ use crate::constants::*;
 use std::cmp::min;
 
 /// Decimal type for high-precision calculations
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize)]
 pub struct Decimal {
     pub value: u128,
+}
+
+impl Default for Decimal {
+    fn default() -> Self {
+        Self::zero()
+    }
+}
+
+impl PartialOrd for Decimal {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.value.partial_cmp(&other.value)
+    }
+}
+
+impl Ord for Decimal {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.value.cmp(&other.value)
+    }
 }
 
 impl Decimal {
@@ -342,7 +360,7 @@ impl Rate {
         
         // Compute quadratic term: coefficient * x² / 2
         let quadratic_product = Self::checked_mul_with_bounds(quadratic_coefficient, x_squared)?;
-        let quadratic_term = quadratic_product.try_div(Decimal::from_integer(2))?;
+        let quadratic_term = quadratic_product.try_div(Decimal::from_integer(2)?)?;
 
         // Final assembly with overflow checks
         let intermediate = Decimal::one().try_add(linear_term)?;

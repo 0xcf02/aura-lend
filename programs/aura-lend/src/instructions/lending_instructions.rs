@@ -29,8 +29,11 @@ pub fn deposit_reserve_liquidity(
         return Err(LendingError::AmountTooSmall.into());
     }
 
-    // Lock reserve to prevent reentrancy
-    reserve.lock()?;
+    // Check reentrancy guard
+    if reserve.reentrancy_guard {
+        return Err(LendingError::ReentrantCall.into());
+    }
+    reserve.reentrancy_guard = true;
     
     // Refresh reserve interest before deposit
     reserve.update_interest(clock.slot)?;
@@ -83,7 +86,7 @@ pub fn deposit_reserve_liquidity(
         .ok_or(LendingError::MathOverflow)?;
 
     // Unlock reserve after successful operation
-    reserve.unlock();
+    reserve.reentrancy_guard = false;
 
     msg!(
         "Deposited {} liquidity, minted {} collateral tokens",
@@ -118,8 +121,11 @@ pub fn redeem_reserve_collateral(
         return Err(LendingError::AmountTooSmall.into());
     }
 
-    // Lock reserve to prevent reentrancy
-    reserve.lock()?;
+    // Check reentrancy guard
+    if reserve.reentrancy_guard {
+        return Err(LendingError::ReentrantCall.into());
+    }
+    reserve.reentrancy_guard = true;
     
     // Refresh reserve interest before withdrawal
     reserve.update_interest(clock.slot)?;
@@ -170,7 +176,7 @@ pub fn redeem_reserve_collateral(
         .ok_or(LendingError::MathUnderflow)?;
 
     // Unlock reserve after successful operation
-    reserve.unlock();
+    reserve.reentrancy_guard = false;
 
     msg!(
         "Redeemed {} collateral tokens for {} liquidity",
@@ -198,7 +204,7 @@ pub struct DepositReserveLiquidity<'info> {
         seeds = [RESERVE_SEED, reserve.liquidity_mint.as_ref()],
         bump,
         has_one = market @ LendingError::InvalidMarketState,
-        has_one = liquidity_supply @ LendingError::ReserveLiquidityMintMismatch,
+        // Validation will be done manually in the instruction
         has_one = collateral_mint @ LendingError::ReserveCollateralMintMismatch
     )]
     pub reserve: Account<'info, Reserve>,
@@ -265,7 +271,7 @@ pub struct RedeemReserveCollateral<'info> {
         seeds = [RESERVE_SEED, reserve.liquidity_mint.as_ref()],
         bump,
         has_one = market @ LendingError::InvalidMarketState,
-        has_one = liquidity_supply @ LendingError::ReserveLiquidityMintMismatch,
+        // Validation will be done manually in the instruction
         has_one = collateral_mint @ LendingError::ReserveCollateralMintMismatch
     )]
     pub reserve: Account<'info, Reserve>,

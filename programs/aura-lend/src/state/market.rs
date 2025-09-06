@@ -4,7 +4,6 @@ use crate::constants::*;
 /// Global market state account
 /// This account contains the overall configuration and state of the lending protocol
 #[account]
-#[derive(Default)]
 pub struct Market {
     /// Version of the market account structure
     pub version: u8,
@@ -87,7 +86,7 @@ impl Market {
             total_fees_collected: 0,
             last_update_timestamp: clock.unix_timestamp as u64,
             flags: MarketFlags::default(),
-            reserved: [0; 192],
+            reserved: [0; 256],
         })
     }
 

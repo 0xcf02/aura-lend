@@ -21,7 +21,12 @@
     "rust:clippy": "cargo clippy --all-targets --all-features -- -D warnings",
     "rust:clippy:fix": "cargo clippy --all-targets --all-features --fix",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf lib target node_modules/.cache"
+    "clean": "rm -rf lib target node_modules/.cache",
+    "upgrade:setup": "ts-node scripts/upgrade/deploy.ts setup",
+    "upgrade:deploy": "ts-node scripts/upgrade/deploy.ts upgrade",
+    "upgrade:verify": "ts-node scripts/upgrade/deploy.ts verify",
+    "migrate:discover": "ts-node scripts/upgrade/migration.ts discover",
+    "migrate:execute": "ts-node scripts/upgrade/migration.ts migrate"
   },
   "repository": {
     "type": "git",

@@ -159,10 +159,10 @@ pub fn refresh_multiple_reserves(ctx: Context<RefreshMultipleReserves>) -> Resul
         oracle_price.validate(clock.unix_timestamp)?;
 
         // Serialize reserve back with comprehensive error handling
-        let mut reserve_data_slice = reserve_data.as_ref();
-        reserve.try_serialize(&mut reserve_data_slice)
+        let mut serialized_data = Vec::new();
+        reserve.try_serialize(&mut serialized_data)
             .map_err(|e| {
-                msg!("Failed to serialize reserve {}: {:?}", reserve_account_info.key, e);
+                msg!("Failed to serialize reserve {}: {:?}", reserve_info.key, e);
                 LendingError::InvalidAccount
             })?;
             

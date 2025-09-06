@@ -143,6 +143,8 @@ pub enum LendingError {
     OperationInProgress,
     #[msg("Invalid unlock operation - not currently locked")]
     InvalidUnlockOperation,
+    #[msg("Reentrant call detected")]
+    ReentrantCall,
 
     // MultiSig errors
     #[msg("Invalid multisig threshold")]
@@ -209,4 +211,16 @@ pub enum LendingError {
     EmergencyRoleTooLong,
     #[msg("Invalid emergency permissions")]
     InvalidEmergencyPermissions,
+
+    // Migration/Upgrade errors
+    #[msg("Unsupported migration version")]
+    UnsupportedMigration,
+    #[msg("Invalid migration - cannot downgrade")]
+    InvalidMigration,
+    #[msg("Partial migration failure")]
+    PartialMigrationFailure,
+    #[msg("Migration already completed")]
+    MigrationAlreadyCompleted,
+    #[msg("Migration in progress")]
+    MigrationInProgress,
 }

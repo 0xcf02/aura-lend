@@ -5,7 +5,6 @@ use crate::error::LendingError;
 /// Multi-signature wallet for critical protocol operations
 /// Requires multiple signatures before execution
 #[account]
-#[derive(Default)]
 pub struct MultiSig {
     /// Version of the multisig account structure
     pub version: u8,
@@ -96,7 +95,6 @@ impl MultiSig {
 
 /// Multisig transaction proposal
 #[account]
-#[derive(Default)]
 pub struct MultisigProposal {
     /// Version of the proposal account structure
     pub version: u8,
@@ -244,6 +242,14 @@ pub enum MultisigOperationType {
     EmergencyAction,
     /// Withdraw protocol fees
     WithdrawFees,
+    /// Program upgrade operations
+    ProgramUpgrade,
+    /// Set upgrade authority
+    SetUpgradeAuthority,
+    /// Freeze program (remove upgrade authority)
+    FreezeProgram,
+    /// Data migration operations
+    DataMigration,
 }
 
 impl Default for MultisigOperationType {
