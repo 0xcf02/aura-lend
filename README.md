@@ -109,7 +109,7 @@ anchor deploy --provider.cluster devnet
 
 # Initialize protocol on devnet
 npm run initialize-devnet
-
+```
 🏗 Project Structure
 ├── programs/
 │   └── aura-lend/
@@ -144,7 +144,7 @@ npm run initialize-devnet
 │   └── aura-lend.ts                   # Integration tests
 ├── Anchor.toml                        # Anchor configuration
 └── package.json                       # Node.js dependencies
-
+```
 📖 How It Works
 
 **Core Protocol Flow:**
