@@ -199,7 +199,10 @@ pub fn emergency_grant_role(
     let clock = Clock::get()?;
     let max_emergency_duration = clock.unix_timestamp + EMERGENCY_ROLE_MAX_DURATION;
     
-    if params.expires_at.unwrap() > max_emergency_duration {
+    let expires_at = params.expires_at
+        .ok_or(LendingError::EmergencyRoleMustHaveExpiration)?;
+    
+    if expires_at > max_emergency_duration {
         return Err(LendingError::EmergencyRoleTooLong.into());
     }
     

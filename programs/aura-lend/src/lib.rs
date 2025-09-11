@@ -279,4 +279,31 @@ pub mod aura_lend {
     pub fn batch_migrate_reserves<'info>(ctx: Context<'_, '_, '_, 'info, BatchMigrateReserves<'info>>) -> Result<()> {
         instructions::batch_migrate_reserves(ctx)
     }
+
+    // Configuration management
+    pub fn initialize_config(
+        ctx: Context<InitializeConfig>,
+        params: utils::config::ConfigUpdateParams,
+    ) -> Result<()> {
+        instructions::initialize_config(ctx, params)
+    }
+
+    pub fn update_config(
+        ctx: Context<UpdateConfig>,
+        params: utils::config::ConfigUpdateParams,
+        timelock_priority: utils::config::TimelockPriority,
+    ) -> Result<()> {
+        instructions::update_config(ctx, params, timelock_priority)
+    }
+
+    pub fn emergency_config_update(
+        ctx: Context<EmergencyConfigUpdate>,
+        emergency_params: instructions::config_instructions::EmergencyConfigParams,
+    ) -> Result<()> {
+        instructions::emergency_config_update(ctx, emergency_params)
+    }
+
+    pub fn get_config(ctx: Context<GetConfig>) -> Result<utils::config::ProtocolConfig> {
+        instructions::get_config(ctx)
+    }
 }

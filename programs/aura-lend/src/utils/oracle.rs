@@ -143,37 +143,47 @@ pub struct OracleManager;
 impl OracleManager {
     /// Get price from Pyth price update account
     pub fn get_pyth_price(
-        _price_update_account: &AccountInfo,
-        _feed_id: &[u8; 32],
+        price_update_account: &AccountInfo,
+        feed_id: &[u8; 32],
     ) -> Result<OraclePrice> {
-        // TODO: Fix deserialize method when Pyth SDK is properly configured
-        return Err(LendingError::OracleAccountMismatch.into());
+        use pyth_solana_receiver_sdk::price_update::{PriceUpdateV2, get_feed_id_from_hex};
         
-        /*
-        let price_update = PriceUpdateV2::try_deserialize(&mut price_update_account.data.borrow().as_ref())
-            .map_err(|_| LendingError::OracleAccountMismatch)?;
-        */
+        // Validate account ownership
+        if price_update_account.owner != &pyth_solana_receiver_sdk::ID {
+            return Err(LendingError::OracleAccountMismatch.into());
+        }
 
-        /*
-        // Verify the price update
-        if price_update.verification_level != VerificationLevel::Full {
+        // Deserialize the price update account
+        let mut account_data = price_update_account.data.borrow();
+        let price_update = PriceUpdateV2::try_deserialize(&mut account_data.as_ref())
+            .map_err(|_| LendingError::OracleAccountMismatch)?;
+
+        // Verify the price update has been verified
+        if !price_update.verification_level.is_verified() {
             return Err(LendingError::OraclePriceInvalid.into());
         }
 
-        // Find the price feed for the given asset
+        // Find the price feed for the given feed ID
         let price_feed = price_update
             .price_feeds
             .iter()
-            .find(|feed| &feed.id == feed_id)
+            .find(|feed| &feed.id.to_bytes() == feed_id)
             .ok_or(LendingError::OracleAccountMismatch)?;
 
+        // Extract the current price
+        let price_data = &price_feed.price;
+        
+        // Validate price is not negative (lending protocols typically don't handle negative prices)
+        if price_data.price < 0 {
+            return Err(LendingError::OraclePriceInvalid.into());
+        }
+
         Ok(OraclePrice {
-            price: price_feed.price.price,
-            confidence: price_feed.price.conf,
-            exponent: price_feed.price.exponent,
-            publish_time: price_feed.price.publish_time,
+            price: price_data.price,
+            confidence: price_data.conf,
+            exponent: price_data.exponent,
+            publish_time: price_data.publish_time,
         })
-        */
     }
 
     /// Calculate asset value in USD using oracle price
@@ -297,7 +307,8 @@ impl OracleManager {
             .ok_or(LendingError::DivisionByZero)? as i64;
 
         // Use the most recent price's metadata with TWAP price
-        let latest_price = valid_prices.last().unwrap();
+        let latest_price = valid_prices.last()
+            .ok_or(LendingError::OraclePriceInvalid)?;
         Ok(OraclePrice {
             price: twap_price,
             confidence: latest_price.confidence,

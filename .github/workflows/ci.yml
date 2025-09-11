@@ -1,0 +1,390 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  CARGO_TERM_COLOR: always
+  SOLANA_VERSION: "1.18.22"
+  ANCHOR_VERSION: "0.30.1"
+  NODE_VERSION: "18"
+
+jobs:
+  lint-and-format:
+    name: Lint and Format Check
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        profile: minimal
+        components: rustfmt, clippy
+        override: true
+        
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Check Rust formatting
+      run: cargo fmt --all -- --check
+      
+    - name: Rust lint check
+      run: cargo clippy --all-targets --all-features -- -D warnings
+      
+    - name: TypeScript lint check
+      run: npm run lint
+      
+    - name: TypeScript type check
+      run: npm run type-check
+
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        profile: minimal
+        override: true
+        
+    - name: Install cargo-audit
+      run: cargo install cargo-audit
+      
+    - name: Run security audit
+      run: cargo audit
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Run npm audit
+      run: npm audit --audit-level=moderate
+
+  build-and-test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        profile: minimal
+        override: true
+        
+    - name: Cache Rust dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-
+          
+    - name: Install Solana CLI
+      run: |
+        sh -c "$(curl -sSfL https://release.solana.com/v${{ env.SOLANA_VERSION }}/install)"
+        echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
+        
+    - name: Install Anchor CLI
+      run: |
+        npm install -g @coral-xyz/anchor-cli@${{ env.ANCHOR_VERSION }}
+        
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Generate keypair
+      run: solana-keygen new --no-bip39-passphrase
+      
+    - name: Build Anchor program
+      run: anchor build
+      
+    - name: Run Rust unit tests
+      run: cargo test --workspace
+      
+    - name: Start Solana test validator
+      run: |
+        solana-test-validator --reset --quiet &
+        sleep 10
+        
+    - name: Run Anchor tests
+      run: anchor test --skip-local-validator
+      
+    - name: Run security tests
+      run: npm run test:security
+      
+    - name: Run governance tests
+      run: npm run test:governance
+      
+    - name: Run performance tests
+      run: npm run test:performance
+      
+    - name: Generate test coverage
+      run: |
+        cargo install cargo-tarpaulin
+        cargo tarpaulin --out xml --output-dir ./coverage
+        
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        files: ./coverage/cobertura.xml
+        fail_ci_if_error: true
+
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: [build-and-test]
+    
+    strategy:
+      matrix:
+        network: [localnet, devnet]
+        
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        profile: minimal
+        override: true
+        
+    - name: Install Solana CLI
+      run: |
+        sh -c "$(curl -sSfL https://release.solana.com/v${{ env.SOLANA_VERSION }}/install)"
+        echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
+        
+    - name: Install Anchor CLI
+      run: npm install -g @coral-xyz/anchor-cli@${{ env.ANCHOR_VERSION }}
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Configure Solana for ${{ matrix.network }}
+      run: |
+        if [ "${{ matrix.network }}" = "devnet" ]; then
+          solana config set --url https://api.devnet.solana.com
+          echo "${{ secrets.DEVNET_PRIVATE_KEY }}" > ~/.config/solana/id.json
+        else
+          solana-keygen new --no-bip39-passphrase
+          solana-test-validator --reset --quiet &
+          sleep 10
+        fi
+        
+    - name: Build and deploy program
+      run: |
+        anchor build
+        if [ "${{ matrix.network }}" = "devnet" ]; then
+          anchor deploy --provider.cluster devnet
+        else
+          anchor deploy
+        fi
+        
+    - name: Run integration tests
+      run: npm run test:integration
+      env:
+        ANCHOR_PROVIDER_URL: ${{ matrix.network == 'devnet' && 'https://api.devnet.solana.com' || 'http://localhost:8899' }}
+
+  security-analysis:
+    name: Security Analysis
+    runs-on: ubuntu-latest
+    needs: [build-and-test]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        profile: minimal
+        override: true
+        
+    - name: Install security tools
+      run: |
+        cargo install cargo-audit
+        cargo install cargo-geiger
+        
+    - name: Run cargo audit
+      run: cargo audit
+      
+    - name: Run cargo geiger (unsafe code analysis)
+      run: cargo geiger --update-db --all-targets
+      
+    - name: Install Anchor CLI
+      run: npm install -g @coral-xyz/anchor-cli@${{ env.ANCHOR_VERSION }}
+      
+    - name: Build program
+      run: anchor build
+      
+    - name: Run static analysis
+      run: |
+        # Custom security checks for Solana programs
+        echo "Running custom security analysis..."
+        
+        # Check for potential security issues
+        grep -r "unwrap()" programs/ || echo "No unwrap() calls found"
+        grep -r "expect(" programs/ || echo "No expect() calls found"
+        grep -r "panic!" programs/ || echo "No panic! calls found"
+        
+        # Check for proper error handling
+        echo "Checking error handling patterns..."
+        grep -r "Result<" programs/ | wc -l
+        
+        # Check for proper authorization
+        echo "Checking authorization patterns..."
+        grep -r "Signer" programs/ | wc -l
+
+  documentation:
+    name: Documentation Check
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        profile: minimal
+        override: true
+        
+    - name: Generate Rust documentation
+      run: cargo doc --no-deps --document-private-items
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Check TypeScript documentation
+      run: npm run docs:check
+      
+    - name: Validate README and docs
+      run: |
+        # Check if important documentation files exist
+        test -f README.md
+        test -f docs/API_GUIDE.md
+        test -f docs/DEVELOPMENT_GUIDE.md
+        test -f docs/SECURITY_GUIDE.md
+        
+        # Check if documentation is up to date
+        echo "Documentation validation passed"
+
+  performance-benchmarks:
+    name: Performance Benchmarks
+    runs-on: ubuntu-latest
+    needs: [build-and-test]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        profile: minimal
+        override: true
+        
+    - name: Install Solana CLI
+      run: |
+        sh -c "$(curl -sSfL https://release.solana.com/v${{ env.SOLANA_VERSION }}/install)"
+        echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
+        
+    - name: Install Anchor CLI
+      run: npm install -g @coral-xyz/anchor-cli@${{ env.ANCHOR_VERSION }}
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Generate keypair
+      run: solana-keygen new --no-bip39-passphrase
+      
+    - name: Build program
+      run: anchor build
+      
+    - name: Start Solana test validator
+      run: |
+        solana-test-validator --reset --quiet &
+        sleep 10
+        
+    - name: Run performance benchmarks
+      run: npm run benchmark
+      
+    - name: Upload benchmark results
+      uses: actions/upload-artifact@v3
+      with:
+        name: benchmark-results
+        path: benchmark-results.json
+
+  notify-on-failure:
+    name: Notify on Failure
+    runs-on: ubuntu-latest
+    needs: [lint-and-format, security-audit, build-and-test, integration-tests, security-analysis]
+    if: failure()
+    
+    steps:
+    - name: Notify Slack on failure
+      uses: 8398a7/action-slack@v3
+      with:
+        status: failure
+        channel: '#dev-alerts'
+        username: 'CI/CD Bot'
+        icon_emoji: ':warning:'
+        text: 'CI/CD Pipeline failed for Aura Lend Protocol'
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

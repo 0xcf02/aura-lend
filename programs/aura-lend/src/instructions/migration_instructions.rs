@@ -175,68 +175,100 @@ pub fn migrate_governance(ctx: Context<MigrateGovernance>) -> Result<()> {
 }
 
 /// Batch migrate multiple reserves
-pub fn batch_migrate_reserves(_ctx: Context<BatchMigrateReserves>) -> Result<()> {
-    // TODO: Fix lifetime issues and implement batch migration
-    return Err(LendingError::OperationNotPermitted.into());
-    
-    /*
+pub fn batch_migrate_reserves<'info>(ctx: Context<'_, '_, '_, 'info, BatchMigrateReserves<'info>>) -> Result<()> {
     let market = &ctx.accounts.market;
     let authority = &ctx.accounts.authority;
 
-    // Validate authority
+    // Validate authority has proper permissions
     validate_authority(&authority.to_account_info(), &market.multisig_owner)?;
 
     let remaining_accounts = &ctx.remaining_accounts;
     let mut migrated_count = 0;
     let mut skipped_count = 0;
+    let mut failed_count = 0;
 
-    // Process each reserve account
+    // Process each reserve account in batches to avoid transaction size limits
     for account_info in remaining_accounts.iter() {
-        // Try to deserialize as Reserve
-        if let Ok(mut reserve) = Account::<Reserve>::try_from(account_info) {
-            // Verify reserve belongs to market
-            if reserve.market != market.key() {
-                msg!("Skipping reserve {} - belongs to different market", account_info.key());
-                skipped_count += 1;
-                continue;
-            }
+        // Validate account ownership
+        if account_info.owner != &crate::id() {
+            msg!("Skipping account {} - not owned by program", account_info.key());
+            skipped_count += 1;
+            continue;
+        }
 
-            // Check if migration is needed
-            if reserve.needs_migration() {
-                let from_version = reserve.version();
-                match validate_migration_compatibility(from_version, PROGRAM_VERSION) {
-                    Ok(()) => {
-                        match reserve.migrate(from_version) {
-                            Ok(()) => {
-                                // Save the migrated account
-                                reserve.exit(&crate::ID)?;
-                                migrated_count += 1;
-                                msg!("Migrated reserve {} from version {}", account_info.key(), from_version);
-                            }
-                            Err(e) => {
-                                msg!("Failed to migrate reserve {}: {:?}", account_info.key(), e);
-                                skipped_count += 1;
-                            }
+        // Try to deserialize as Reserve - use manual deserialization to avoid borrowing issues
+        let account_data = account_info.try_borrow_data()
+            .map_err(|_| LendingError::InvalidAccount)?;
+        
+        // Check if this is a Reserve account by checking discriminator
+        if account_data.len() < 8 {
+            skipped_count += 1;
+            continue;
+        }
+        
+        // Reserve discriminator check
+        let expected_discriminator = anchor_lang::Discriminator::discriminator(&Reserve::default());
+        if &account_data[0..8] != expected_discriminator {
+            msg!("Skipping account {} - not a Reserve account", account_info.key());
+            skipped_count += 1;
+            continue;
+        }
+
+        // Drop the borrow before working with the account
+        drop(account_data);
+
+        // Now work with the account as a Reserve
+        let mut reserve_account = Account::<Reserve>::try_from(account_info)
+            .map_err(|_| LendingError::InvalidAccount)?;
+
+        // Verify reserve belongs to this market
+        if reserve_account.market != market.key() {
+            msg!("Skipping reserve {} - belongs to different market", account_info.key());
+            skipped_count += 1;
+            continue;
+        }
+
+        // Check if migration is needed
+        if reserve_account.needs_migration() {
+            let from_version = reserve_account.version();
+            match validate_migration_compatibility(from_version, PROGRAM_VERSION) {
+                Ok(()) => {
+                    match reserve_account.migrate(from_version) {
+                        Ok(()) => {
+                            migrated_count += 1;
+                            msg!("Successfully migrated reserve {} from version {} to {}", 
+                                account_info.key(), from_version, PROGRAM_VERSION);
+                        }
+                        Err(e) => {
+                            failed_count += 1;
+                            msg!("Failed to migrate reserve {}: {:?}", account_info.key(), e);
                         }
                     }
-                    Err(e) => {
-                        msg!("Invalid migration for reserve {}: {:?}", account_info.key(), e);
-                        skipped_count += 1;
-                    }
                 }
-            } else {
-                msg!("Reserve {} already at latest version", account_info.key());
-                skipped_count += 1;
+                Err(e) => {
+                    failed_count += 1;
+                    msg!("Migration compatibility check failed for reserve {}: {:?}", 
+                        account_info.key(), e);
+                }
             }
         } else {
-            msg!("Invalid reserve account: {}", account_info.key());
             skipped_count += 1;
+            msg!("Reserve {} already up to date (version {})", 
+                account_info.key(), reserve_account.version());
         }
     }
 
-    msg!("Batch reserve migration completed: {} migrated, {} skipped", migrated_count, skipped_count);
+    msg!(
+        "Batch migration completed: {} migrated, {} skipped, {} failed",
+        migrated_count, skipped_count, failed_count
+    );
+
+    // Return error if any migrations failed
+    if failed_count > 0 {
+        return Err(LendingError::PartialMigrationFailure.into());
+    }
+
     Ok(())
-    */
 }
 
 // Account validation structs

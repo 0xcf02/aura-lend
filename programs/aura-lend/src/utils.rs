@@ -1,6 +1,9 @@
 pub mod math;
 pub mod oracle;
 pub mod token;
+pub mod pagination;
+pub mod logging;
+pub mod metrics;
 
 use anchor_lang::prelude::*;
 use crate::error::LendingError;
@@ -10,6 +13,9 @@ use crate::constants::*;
 pub use math::*;
 pub use oracle::*;
 pub use token::*;
+pub use pagination::*;
+pub use logging::*;
+pub use metrics::*;
 
 /// Validates that a given account is owned by the expected program
 pub fn validate_account_owner(account_info: &AccountInfo, expected_owner: &Pubkey) -> Result<()> {

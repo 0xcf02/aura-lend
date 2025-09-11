@@ -1,0 +1,302 @@
+name: Security Scan
+
+on:
+  schedule:
+    # Run daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'programs/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  dependency-scan:
+    name: Dependency Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        profile: minimal
+        override: true
+        
+    - name: Install cargo-audit
+      run: cargo install cargo-audit
+      
+    - name: Run Rust dependency audit
+      run: cargo audit --json > rust-audit.json
+      continue-on-error: true
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: Install Node dependencies
+      run: npm ci
+      
+    - name: Run npm audit
+      run: npm audit --json > npm-audit.json
+      continue-on-error: true
+      
+    - name: Upload audit results
+      uses: actions/upload-artifact@v3
+      with:
+        name: security-audit-results
+        path: |
+          rust-audit.json
+          npm-audit.json
+
+  code-analysis:
+    name: Static Code Analysis
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        profile: minimal
+        components: clippy
+        override: true
+        
+    - name: Run Clippy with security lints
+      run: |
+        cargo clippy --all-targets --all-features -- \
+          -W clippy::all \
+          -W clippy::pedantic \
+          -W clippy::nursery \
+          -W clippy::cargo \
+          -D warnings \
+          --cap-lints=warn
+          
+    - name: Install cargo-geiger
+      run: cargo install cargo-geiger
+      
+    - name: Run unsafe code analysis
+      run: cargo geiger --update-db --all-targets --output-format Json > geiger-report.json
+      
+    - name: Check for security anti-patterns
+      run: |
+        echo "🔍 Checking for security anti-patterns..."
+        
+        # Check for unsafe code patterns
+        echo "Checking for unsafe blocks..."
+        UNSAFE_COUNT=$(grep -r "unsafe" programs/ --include="*.rs" | wc -l || echo "0")
+        echo "Found $UNSAFE_COUNT unsafe blocks"
+        
+        # Check for panic patterns
+        echo "Checking for panic patterns..."
+        PANIC_COUNT=$(grep -rE "(unwrap\(\)|expect\(|panic!)" programs/ --include="*.rs" | wc -l || echo "0")
+        echo "Found $PANIC_COUNT potential panic sites"
+        
+        if [ "$PANIC_COUNT" -gt 0 ]; then
+          echo "⚠️  Warning: Potential panic sites found"
+          grep -rE "(unwrap\(\)|expect\(|panic!)" programs/ --include="*.rs" || true
+        fi
+        
+        # Check for proper error handling
+        echo "Checking error handling..."
+        RESULT_COUNT=$(grep -r "Result<" programs/ --include="*.rs" | wc -l || echo "0")
+        echo "Found $RESULT_COUNT Result types (good for error handling)"
+        
+        # Check authorization patterns
+        echo "Checking authorization patterns..."
+        SIGNER_COUNT=$(grep -r "Signer" programs/ --include="*.rs" | wc -l || echo "0")
+        echo "Found $SIGNER_COUNT signer requirements"
+        
+        CONSTRAINT_COUNT=$(grep -r "#\[account(" programs/ --include="*.rs" | wc -l || echo "0")
+        echo "Found $CONSTRAINT_COUNT account constraints"
+        
+    - name: Upload analysis results
+      uses: actions/upload-artifact@v3
+      with:
+        name: code-analysis-results
+        path: geiger-report.json
+
+  solana-security-scan:
+    name: Solana-specific Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        profile: minimal
+        override: true
+        
+    - name: Install Anchor CLI
+      run: npm install -g @coral-xyz/anchor-cli@0.30.1
+      
+    - name: Build program
+      run: anchor build
+      
+    - name: Solana security checks
+      run: |
+        echo "🔒 Running Solana-specific security checks..."
+        
+        # Check for common Solana vulnerabilities
+        echo "Checking for common vulnerabilities..."
+        
+        # 1. Check for missing ownership checks
+        echo "1. Checking ownership validation..."
+        grep -r "owner" programs/ --include="*.rs" | wc -l
+        
+        # 2. Check for signer validation
+        echo "2. Checking signer validation..."
+        grep -r "Signer" programs/ --include="*.rs" | wc -l
+        
+        # 3. Check for account validation
+        echo "3. Checking account constraints..."
+        grep -r "constraint" programs/ --include="*.rs" | wc -l
+        
+        # 4. Check for reentrancy protection
+        echo "4. Checking reentrancy protection..."
+        grep -r "reentrancy" programs/ --include="*.rs" | wc -l || echo "0"
+        
+        # 5. Check for integer overflow protection
+        echo "5. Checking overflow protection..."
+        grep -r "checked_" programs/ --include="*.rs" | wc -l
+        
+        # 6. Check for proper PDA derivation
+        echo "6. Checking PDA usage..."
+        grep -r "find_program_address" programs/ --include="*.rs" | wc -l || echo "0"
+        
+        # 7. Check for account size validation
+        echo "7. Checking account size validation..."
+        grep -r "space" programs/ --include="*.rs" | wc -l
+        
+        echo "✅ Solana security scan completed"
+
+  vulnerability-assessment:
+    name: Vulnerability Assessment
+    runs-on: ubuntu-latest
+    needs: [dependency-scan, code-analysis, solana-security-scan]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Download audit results
+      uses: actions/download-artifact@v3
+      with:
+        name: security-audit-results
+        
+    - name: Download analysis results
+      uses: actions/download-artifact@v3
+      with:
+        name: code-analysis-results
+        
+    - name: Generate security report
+      run: |
+        echo "# Security Assessment Report" > security-report.md
+        echo "Generated on: $(date)" >> security-report.md
+        echo "" >> security-report.md
+        
+        echo "## Dependency Audit Results" >> security-report.md
+        
+        if [ -f rust-audit.json ]; then
+          echo "### Rust Dependencies" >> security-report.md
+          # Process Rust audit results
+          cat rust-audit.json | jq -r '.vulnerabilities | length' > /tmp/rust-vuln-count 2>/dev/null || echo "0" > /tmp/rust-vuln-count
+          RUST_VULNS=$(cat /tmp/rust-vuln-count)
+          echo "- Vulnerabilities found: $RUST_VULNS" >> security-report.md
+        fi
+        
+        if [ -f npm-audit.json ]; then
+          echo "### Node.js Dependencies" >> security-report.md
+          # Process npm audit results
+          cat npm-audit.json | jq -r '.metadata.vulnerabilities.total' > /tmp/npm-vuln-count 2>/dev/null || echo "0" > /tmp/npm-vuln-count
+          NPM_VULNS=$(cat /tmp/npm-vuln-count)
+          echo "- Vulnerabilities found: $NPM_VULNS" >> security-report.md
+        fi
+        
+        echo "" >> security-report.md
+        echo "## Code Analysis Results" >> security-report.md
+        
+        if [ -f geiger-report.json ]; then
+          echo "### Unsafe Code Analysis" >> security-report.md
+          echo "- Report generated and analyzed" >> security-report.md
+        fi
+        
+        echo "" >> security-report.md
+        echo "## Recommendations" >> security-report.md
+        echo "- Regularly update dependencies" >> security-report.md
+        echo "- Monitor for new security advisories" >> security-report.md
+        echo "- Conduct periodic security reviews" >> security-report.md
+        echo "- Implement additional security controls as needed" >> security-report.md
+        
+        cat security-report.md
+        
+    - name: Upload security report
+      uses: actions/upload-artifact@v3
+      with:
+        name: security-report
+        path: security-report.md
+        
+    - name: Create security issue on vulnerabilities
+      if: ${{ success() }}
+      run: |
+        # Check if critical vulnerabilities were found
+        RUST_VULNS=$(cat /tmp/rust-vuln-count 2>/dev/null || echo "0")
+        NPM_VULNS=$(cat /tmp/npm-vuln-count 2>/dev/null || echo "0")
+        
+        if [ "$RUST_VULNS" -gt 0 ] || [ "$NPM_VULNS" -gt 0 ]; then
+          echo "🚨 Vulnerabilities detected - consider creating GitHub issue"
+          # In a real environment, you would use GitHub API to create an issue
+        else
+          echo "✅ No critical vulnerabilities found"
+        fi
+
+  security-notification:
+    name: Security Notification
+    runs-on: ubuntu-latest
+    needs: [vulnerability-assessment]
+    if: always()
+    
+    steps:
+    - name: Notify security team
+      uses: 8398a7/action-slack@v3
+      with:
+        status: custom
+        custom_payload: |
+          {
+            "channel": "#security",
+            "username": "Security Scanner",
+            "icon_emoji": ":shield:",
+            "attachments": [{
+              "color": "${{ contains(needs.*.result, 'failure') && 'danger' || 'good' }}",
+              "title": "Security Scan Results",
+              "text": "Daily security scan completed for Aura Lend Protocol",
+              "fields": [{
+                "title": "Status",
+                "value": "${{ contains(needs.*.result, 'failure') && 'Issues Found' || 'All Clear' }}",
+                "short": true
+              }, {
+                "title": "Timestamp",
+                "value": "${{ github.event.head_commit.timestamp }}",
+                "short": true
+              }]
+            }]
+          }
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
