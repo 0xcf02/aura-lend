@@ -223,4 +223,14 @@ pub enum LendingError {
     MigrationAlreadyCompleted,
     #[msg("Migration in progress")]
     MigrationInProgress,
+
+    // Configuration errors
+    #[msg("Invalid configuration parameter")]
+    InvalidConfiguration,
+    #[msg("Configuration parameter out of range")]
+    ConfigurationOutOfRange,
+    #[msg("Configuration validation failed")]
+    ConfigurationValidationFailed,
+    #[msg("Configuration requires higher permissions")]
+    ConfigurationInsufficientPermissions,
 }

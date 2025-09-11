@@ -17,9 +17,11 @@ pub const TIMELOCK_SEED: &[u8] = b"timelock";
 pub const GOVERNANCE_SEED: &[u8] = b"governance";
 
 /// Maximum number of reserves allowed in a single market
-pub const MAX_RESERVES: usize = 32;
+/// Increased from 32 to 128 to support more asset types
+pub const MAX_RESERVES: usize = 128;
 /// Maximum number of obligations that can be tracked
-pub const MAX_OBLIGATIONS: usize = 1000;
+/// Increased from 1000 to 10000 for better scalability
+pub const MAX_OBLIGATIONS: usize = 10_000;
 
 /// High precision constant for financial calculations (18 decimal places)
 pub const PRECISION: u64 = 1_000_000_000_000_000_000; // 1e18
@@ -115,7 +117,8 @@ pub const OBLIGATION_SIZE: usize = 8 + // discriminator
     128; // reserved
 
 // Maximum number of deposits and borrows per obligation
-pub const MAX_OBLIGATION_RESERVES: usize = 8;
+// Increased from 8 to 16 for better portfolio diversification
+pub const MAX_OBLIGATION_RESERVES: usize = 16;
 
 // RBAC Timelock delays (in seconds)
 /// Critical operations - 7 days
@@ -143,12 +146,46 @@ pub const EMERGENCY_ROLE_MAX_DURATION: i64 = 24 * 3600;
 
 // MultSig constraints
 /// Maximum number of signatories in a multisig
-pub const MAX_MULTISIG_SIGNATORIES: usize = 10;
+/// Increased from 10 to 20 for larger governance councils
+pub const MAX_MULTISIG_SIGNATORIES: usize = 20;
 /// Minimum threshold for multisig
 pub const MIN_MULTISIG_THRESHOLD: u8 = 1;
 
 // Governance constraints
 /// Maximum number of concurrent roles per registry
-pub const MAX_GOVERNANCE_ROLES: usize = 50;
+/// Increased from 50 to 200 for larger organizations
+pub const MAX_GOVERNANCE_ROLES: usize = 200;
 /// Default role expiration (1 year)
 pub const DEFAULT_ROLE_EXPIRATION: i64 = 365 * 24 * 3600;
+
+// Configuration system constants
+/// Default protocol fee (1%)
+pub const DEFAULT_PROTOCOL_FEE: u64 = 100;
+/// Maximum protocol fee (5%)
+pub const MAX_PROTOCOL_FEE: u64 = 500;
+/// Liquidation close factor (50%)
+pub const LIQUIDATION_CLOSE_FACTOR: u64 = 5000;
+/// Maximum liquidation bonus (20%)
+pub const MAX_LIQUIDATION_BONUS: u64 = 2000;
+/// Minimum health factor (1.0)
+pub const MIN_HEALTH_FACTOR: u64 = PRECISION;
+/// Maximum LTV ratio (90%)
+pub const MAX_LTV_RATIO: u64 = 9000;
+/// Minimum liquidation threshold (50%)
+pub const MIN_LIQUIDATION_THRESHOLD: u64 = 5000;
+/// Oracle staleness threshold in slots (2 minutes)
+pub const ORACLE_STALENESS_THRESHOLD: u64 = 240;
+/// Oracle confidence threshold (1%)
+pub const ORACLE_CONFIDENCE_THRESHOLD: u64 = 100;
+/// Minimum oracle sources required
+pub const MIN_ORACLE_SOURCES: u8 = 3;
+/// Default timelock delay (1 hour)
+pub const DEFAULT_TIMELOCK_DELAY: u64 = 3600;
+/// Compute unit limit for instructions
+pub const COMPUTE_UNIT_LIMIT: u32 = 400_000;
+/// Maximum accounts per instruction
+pub const MAX_ACCOUNTS_PER_INSTRUCTION: u8 = 32;
+/// Default pagination limit
+pub const PAGINATION_DEFAULT_LIMIT: u64 = 50;
+/// Maximum pagination limit
+pub const PAGINATION_MAX_LIMIT: u64 = 1000;
