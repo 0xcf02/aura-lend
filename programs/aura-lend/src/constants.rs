@@ -18,6 +18,7 @@ pub const GOVERNANCE_SEED: &[u8] = b"governance";
 
 /// Maximum number of reserves allowed in a single market
 /// Increased from 32 to 128 to support more asset types
+pub const MAX_BATCH_OPERATIONS: usize = 50;
 pub const MAX_RESERVES: usize = 128;
 /// Maximum number of obligations that can be tracked
 /// Increased from 1000 to 10000 for better scalability

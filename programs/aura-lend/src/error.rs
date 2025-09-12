@@ -110,6 +110,16 @@ pub enum LendingError {
     #[msg("Flash loan amount too large")]
     FlashLoanAmountTooLarge,
 
+    // Performance optimization errors
+    #[msg("Batch size exceeded maximum allowed")]
+    BatchSizeExceeded,
+    #[msg("Insufficient memory for allocation")]
+    InsufficientMemory,
+    #[msg("Stack overflow in allocator")]
+    StackOverflow,
+    #[msg("Insufficient borrow amount")]
+    InsufficientBorrow,
+
     // General validation errors
     #[msg("Invalid instruction")]
     InvalidInstruction,
