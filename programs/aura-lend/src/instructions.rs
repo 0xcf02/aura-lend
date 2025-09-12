@@ -9,6 +9,7 @@ pub mod governance_instructions;
 pub mod upgrade_instructions;
 pub mod migration_instructions;
 pub mod config_instructions;
+pub mod batch_operations;
 
 // Re-export all instructions and their context structs
 pub use market_instructions::*;
@@ -22,3 +23,4 @@ pub use governance_instructions::*;
 pub use upgrade_instructions::*;
 pub use migration_instructions::*;
 pub use config_instructions::*;
+pub use batch_operations::*;
