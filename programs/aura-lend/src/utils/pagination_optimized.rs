@@ -350,8 +350,11 @@ impl PaginationEngine {
         let start_index = if params.cursor.is_some() { 0 } else { 
             (params.page * params.page_size) as usize 
         };
-        let end_index = start_index + params.page_size as usize;
-        
+        let _end_index = start_index + params.page_size as usize;
+
+        // Store total count before consuming filtered_obligations
+        let total_items = filtered_obligations.len() as u32;
+
         let page_items: Vec<Pubkey> = filtered_obligations
             .into_iter()
             .skip(start_index)
@@ -373,7 +376,7 @@ impl PaginationEngine {
             items: page_items,
             page: params.page,
             page_size: params.page_size,
-            total_items: filtered_obligations.len() as u32, // This is an approximation
+            total_items, // Use the stored value
             has_next_page: next_cursor.is_some(),
             next_cursor,
         })
@@ -384,7 +387,7 @@ impl PaginationEngine {
         &self,
         mut obligations: Vec<Pubkey>,
         cursor: &PaginationCursor,
-        params: &PaginationParamsOptimized,
+        _params: &PaginationParamsOptimized,
     ) -> Vec<Pubkey> {
         // This would filter based on the cursor's last_sort_value
         // For now, we'll do a simple filter by last_id
@@ -402,13 +405,13 @@ impl PaginationEngine {
     /// Sort obligations by field (leveraging indices when possible)
     fn sort_obligations(
         &self,
-        obligations: &mut Vec<Pubkey>,
-        sort_field: &SortField,
-        ascending: bool,
+        _obligations: &mut Vec<Pubkey>,
+        _sort_field: &SortField,
+        _ascending: bool,
     ) -> Result<()> {
         // In a real implementation, we would use the indexed data for sorting
         // For now, this is a placeholder that would integrate with actual obligation data
-        match sort_field {
+        match _sort_field {
             SortField::HealthFactor => {
                 // Would sort using health_factor_index data
             }

@@ -1,19 +1,15 @@
 [toolchain]
-anchor_version = "0.30.1"
+anchor_version = "0.31.1"
 
 [features]
 resolution = true
 skip-lint = false
 
 [programs.localnet]
-aura_lend = "AuRa1Lend1111111111111111111111111111111111"
-liquidation_engine = "LiQ1idat1111111111111111111111111111111111"
-rewards_distributor = "ReWa1rds1111111111111111111111111111111111"
+aura_lend = "11111111111111111111111111111112"
 
 [programs.devnet]
-aura_lend = "AuRa1Lend1111111111111111111111111111111111"
-liquidation_engine = "LiQ1idat1111111111111111111111111111111111"
-rewards_distributor = "ReWa1rds1111111111111111111111111111111111"
+aura_lend = "11111111111111111111111111111112"
 
 [registry]
 url = "https://api.apr.dev"
