@@ -11,7 +11,7 @@
     "moduleResolution": "node",
     "baseUrl": "./",
     "outDir": "./lib",
-    "rootDir": "./sdk",
+    "rootDir": "./",
     "skipLibCheck": true,
     "strict": true,
     "declaration": true,
@@ -30,7 +30,8 @@
     }
   },
   "include": [
-    "sdk/**/*"
+    "sdk/**/*",
+    "tests/**/*"
   ],
   "exclude": [
     "node_modules",

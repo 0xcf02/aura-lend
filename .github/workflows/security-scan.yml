@@ -145,7 +145,7 @@ jobs:
         override: true
         
     - name: Install Anchor CLI
-      run: npm install -g @coral-xyz/anchor-cli@0.30.1
+      run: npm install -g @coral-xyz/anchor-cli@0.31.1
       
     - name: Build program
       run: anchor build

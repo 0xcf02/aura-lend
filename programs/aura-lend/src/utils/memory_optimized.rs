@@ -77,18 +77,28 @@ impl<T: Default + Clone> MemoryPool<T> {
 
     /// Allocate object with O(1) complexity
     pub fn allocate(&mut self) -> Result<(usize, &mut T)> {
+        // Try to reuse from free list first
         if let Some(index) = self.free_list.pop() {
             self.stats.allocations += 1;
             let chunk_id = index / self.chunk_size;
             let item_id = index % self.chunk_size;
-            
+
             if let Some(chunk) = self.chunks.get_mut(chunk_id) {
                 return Ok((index, &mut chunk[item_id]));
             }
         }
-        
-        // Allocate new chunk if needed
-        self.allocate_new_chunk()
+
+        // Need to allocate new chunk
+        let chunk_id = self.chunks.len();
+        let new_chunk = vec![T::default(); self.chunk_size].into_boxed_slice();
+        self.chunks.push(new_chunk);
+
+        let index = chunk_id * self.chunk_size;
+        self.stats.allocations += 1;
+
+        // We know this will succeed since we just added the chunk
+        let chunk = self.chunks.get_mut(chunk_id).unwrap();
+        Ok((index, &mut chunk[0]))
     }
 
     /// Deallocate object with O(1) complexity
@@ -97,22 +107,6 @@ impl<T: Default + Clone> MemoryPool<T> {
         self.stats.deallocations += 1;
     }
 
-    /// Allocate new chunk when pool is exhausted
-    fn allocate_new_chunk(&mut self) -> Result<(usize, &mut T)> {
-        let new_chunk = vec![T::default(); self.chunk_size].into_boxed_slice();
-        let chunk_id = self.chunks.len();
-        self.chunks.push(new_chunk);
-        
-        // Add new free indices
-        let start_index = chunk_id * self.chunk_size;
-        for i in (start_index + 1)..(start_index + self.chunk_size) {
-            self.free_list.push(i);
-        }
-        
-        self.stats.allocations += 1;
-        let chunk = self.chunks.get_mut(chunk_id).unwrap();
-        Ok((start_index, &mut chunk[0]))
-    }
 
     /// Get pool statistics
     pub fn get_stats(&self) -> &PoolStats {
@@ -273,7 +267,7 @@ pub mod prefetch {
     use super::*;
 
     /// Prefetch data to improve cache performance
-    pub fn prefetch_obligations(obligation_keys: &[Pubkey], accounts: &[AccountInfo]) {
+    pub fn prefetch_obligations(_obligation_keys: &[Pubkey], accounts: &[AccountInfo]) {
         // In a real implementation, this would use CPU prefetch instructions
         // For now, we simulate by accessing the first few bytes of each account
         for account in accounts.iter().take(8) { // Limit to prevent excessive work

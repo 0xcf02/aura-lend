@@ -505,17 +505,20 @@ pub struct BatchProcessInstruction<'info> {
 }
 
 /// Process batch operations instruction
-pub fn process_batch_operations(
-    ctx: Context<BatchProcessInstruction>,
+pub fn process_batch_operations<'a>(
+    ctx: Context<'a, BatchProcessInstruction<'a>>,
     operations: Vec<BatchOperation>,
 ) -> Result<Vec<BatchOperationResult>> {
     let mut processor = BatchProcessor::new(MAX_BATCH_OPERATIONS);
-    
+
     // Collect all accounts including remaining accounts
     let mut all_accounts = vec![
         ctx.accounts.market.clone(),
     ];
-    all_accounts.extend(ctx.remaining_accounts.iter().cloned());
+    // Clone the remaining accounts to avoid lifetime issues
+    for account in ctx.remaining_accounts.iter() {
+        all_accounts.push(account.clone());
+    }
     
     let results = processor.process_batch_operations(&operations, &all_accounts)?;
     

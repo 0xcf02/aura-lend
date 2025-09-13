@@ -85,6 +85,8 @@ pub enum LendingError {
     InvalidAuthority,
     #[msg("Authority signer missing")]
     AuthoritySignerMissing,
+    #[msg("Unauthorized signer")]
+    UnauthorizedSigner,
 
     // Amount errors
     #[msg("Amount is too small")]
