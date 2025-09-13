@@ -17,12 +17,12 @@ pub const TIMELOCK_SEED: &[u8] = b"timelock";
 pub const GOVERNANCE_SEED: &[u8] = b"governance";
 
 /// Maximum number of reserves allowed in a single market
-/// Increased from 32 to 128 to support more asset types
-pub const MAX_BATCH_OPERATIONS: usize = 50;
-pub const MAX_RESERVES: usize = 128;
+/// Optimized for efficient memory usage and gas costs
+pub const MAX_BATCH_OPERATIONS: usize = 20;
+pub const MAX_RESERVES: usize = 64;
 /// Maximum number of obligations that can be tracked
-/// Increased from 1000 to 10000 for better scalability
-pub const MAX_OBLIGATIONS: usize = 10_000;
+/// Optimized for memory efficiency and indexing performance
+pub const MAX_OBLIGATIONS: usize = 5_000;
 
 /// High precision constant for financial calculations (18 decimal places)
 pub const PRECISION: u64 = 1_000_000_000_000_000_000; // 1e18
@@ -32,26 +32,27 @@ pub const PERCENT_PRECISION: u64 = 10_000;
 pub const BASIS_POINTS_PRECISION: u64 = 10_000;
 
 /// Maximum safe value for calculations to prevent overflow
-pub const MAX_SAFE_VALUE: u128 = u128::MAX / 1_000_000;
+/// Reduced by factor of 10 for additional safety margin
+pub const MAX_SAFE_VALUE: u128 = u128::MAX / 10_000_000;
 /// Minimum safe value to prevent underflow in calculations
-pub const MIN_SAFE_VALUE: u128 = 1;
+pub const MIN_SAFE_VALUE: u128 = 100;
 
 /// Number of seconds in a year for interest rate calculations
 pub const SECONDS_PER_YEAR: u64 = 365 * 24 * 3600; // 31,536,000
 /// Approximate number of slots per year on Solana (~2 slots/second)
 pub const SLOTS_PER_YEAR: u64 = SECONDS_PER_YEAR * 2;
 
-/// Maximum liquidation bonus that can be set (50%)
-pub const MAX_LIQUIDATION_BONUS_BPS: u64 = 5000;
+/// Maximum liquidation bonus that can be set (30% - reduced for safety)
+pub const MAX_LIQUIDATION_BONUS_BPS: u64 = 3000;
 /// Minimum liquidation threshold that can be set (10%)
 pub const MIN_LIQUIDATION_THRESHOLD_BPS: u64 = 1000;
 /// Maximum loan-to-value ratio allowed (90%)
 pub const MAX_LOAN_TO_VALUE_RATIO_BPS: u64 = 9000;
 
-/// Maximum age of oracle data in slots before considered stale (~2 minutes)
-pub const MAX_ORACLE_STALENESS_SLOTS: u64 = 240;
-/// Emergency oracle staleness limit for extreme situations (~3 hours)
-pub const EMERGENCY_ORACLE_STALENESS_SLOTS: u64 = 21600;
+/// Maximum age of oracle data in slots before considered stale (~90 seconds)
+pub const MAX_ORACLE_STALENESS_SLOTS: u64 = 180;
+/// Emergency oracle staleness limit for extreme situations (~1.5 hours)
+pub const EMERGENCY_ORACLE_STALENESS_SLOTS: u64 = 10800;
 
 // Time manipulation protection
 pub const MIN_INTEREST_UPDATE_INTERVAL: u64 = 60; // 1 minute minimum between updates
@@ -59,9 +60,9 @@ pub const MAX_TIMESTAMP_FUTURE_TOLERANCE: u64 = 300; // 5 minutes max future
 pub const MIN_TIMESTAMP_SOLANA_GENESIS: u64 = 1_609_459_200; // Solana genesis timestamp
 pub const SLOT_TIMESTAMP_VARIANCE_BPS: u64 = 1000; // 10% variance allowed
 
-// Minimum values to prevent dust
-pub const MIN_DEPOSIT_AMOUNT: u64 = 1000; // Minimum deposit in base units
-pub const MIN_BORROW_AMOUNT: u64 = 1000; // Minimum borrow in base units
+// Minimum values to prevent dust attacks (increased)
+pub const MIN_DEPOSIT_AMOUNT: u64 = 10000; // Minimum deposit in base units
+pub const MIN_BORROW_AMOUNT: u64 = 10000; // Minimum borrow in base units
 
 // Flash loan parameters
 pub const FLASH_LOAN_FEE_BPS: u64 = 9; // 0.09%
@@ -118,8 +119,8 @@ pub const OBLIGATION_SIZE: usize = 8 + // discriminator
     128; // reserved
 
 // Maximum number of deposits and borrows per obligation
-// Increased from 8 to 16 for better portfolio diversification
-pub const MAX_OBLIGATION_RESERVES: usize = 16;
+// Optimized for gas efficiency and account size
+pub const MAX_OBLIGATION_RESERVES: usize = 12;
 
 // RBAC Timelock delays (in seconds)
 /// Critical operations - 7 days
@@ -147,15 +148,15 @@ pub const EMERGENCY_ROLE_MAX_DURATION: i64 = 24 * 3600;
 
 // MultSig constraints
 /// Maximum number of signatories in a multisig
-/// Increased from 10 to 20 for larger governance councils
-pub const MAX_MULTISIG_SIGNATORIES: usize = 20;
+/// Optimized for reasonable governance while maintaining efficiency
+pub const MAX_MULTISIG_SIGNATORIES: usize = 15;
 /// Minimum threshold for multisig
 pub const MIN_MULTISIG_THRESHOLD: u8 = 1;
 
 // Governance constraints
 /// Maximum number of concurrent roles per registry
-/// Increased from 50 to 200 for larger organizations
-pub const MAX_GOVERNANCE_ROLES: usize = 200;
+/// Balanced for scalability and performance
+pub const MAX_GOVERNANCE_ROLES: usize = 100;
 /// Default role expiration (1 year)
 pub const DEFAULT_ROLE_EXPIRATION: i64 = 365 * 24 * 3600;
 
@@ -182,11 +183,11 @@ pub const ORACLE_CONFIDENCE_THRESHOLD: u64 = 100;
 pub const MIN_ORACLE_SOURCES: u8 = 3;
 /// Default timelock delay (1 hour)
 pub const DEFAULT_TIMELOCK_DELAY: u64 = 3600;
-/// Compute unit limit for instructions
-pub const COMPUTE_UNIT_LIMIT: u32 = 400_000;
+/// Compute unit limit for instructions (conservative)
+pub const COMPUTE_UNIT_LIMIT: u32 = 300_000;
 /// Maximum accounts per instruction
 pub const MAX_ACCOUNTS_PER_INSTRUCTION: u8 = 32;
-/// Default pagination limit
-pub const PAGINATION_DEFAULT_LIMIT: u64 = 50;
-/// Maximum pagination limit
-pub const PAGINATION_MAX_LIMIT: u64 = 1000;
+/// Default pagination limit (optimized for RPC calls)
+pub const PAGINATION_DEFAULT_LIMIT: u64 = 25;
+/// Maximum pagination limit (prevent excessive RPC load)
+pub const PAGINATION_MAX_LIMIT: u64 = 500;

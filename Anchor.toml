@@ -9,10 +9,10 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-aura_lend = "11111111111111111111111111111112"
+aura_lend = "AuraLendVxVxVxVxVxVxVxVxVxVxVxVxVxVxVxVxVxVxV"
 
 [programs.devnet]
-aura_lend = "11111111111111111111111111111112"
+aura_lend = "AuraLendVxVxVxVxVxVxVxVxVxVxVxVxVxVxVxVxVxVxV"
 
 [registry]
 url = "https://api.apr.dev"

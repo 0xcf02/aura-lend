@@ -9,22 +9,30 @@ pub mod fast_math {
 
     /// Fast integer square root using Newton's method (optimized)
     #[inline]
-    pub fn fast_sqrt(n: u128) -> u128 {
+    pub fn fast_sqrt(n: u128) -> Result<u128> {
         if n == 0 {
-            return 0;
+            return Ok(0);
         }
-        
+
         // Initial guess using bit manipulation for speed
         let mut x = n;
-        let mut y = (x + 1) / 2;
-        
-        // Newton's method with early termination
+        let mut y = x.checked_add(1)
+            .ok_or(crate::error::LendingError::MathOverflow)?
+            .checked_div(2)
+            .ok_or(crate::error::LendingError::DivisionByZero)?;
+
+        // Newton's method with early termination (with overflow protection)
         while y < x {
             x = y;
-            y = (x + n / x) / 2;
+            y = x.checked_add(
+                n.checked_div(x).ok_or(crate::error::LendingError::DivisionByZero)?
+            )
+            .ok_or(crate::error::LendingError::MathOverflow)?
+            .checked_div(2)
+            .ok_or(crate::error::LendingError::DivisionByZero)?;
         }
-        
-        x
+
+        Ok(x)
     }
 
     /// Fast power calculation using binary exponentiation
@@ -247,7 +255,7 @@ impl Decimal {
             .checked_mul(PRECISION as u128)
             .ok_or(LendingError::MathOverflow)?;
         
-        let sqrt_result = fast_math::fast_sqrt(scaled_value);
+        let sqrt_result = fast_math::fast_sqrt(scaled_value)?;
         
         Ok(Decimal { value: sqrt_result })
     }

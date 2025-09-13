@@ -46,6 +46,7 @@ pub fn validate_authority(
 }
 
 /// Gets validated timestamp for logging purposes
-pub fn get_validated_timestamp() -> i64 {
-    Clock::get().unwrap().unix_timestamp
+pub fn get_validated_timestamp() -> Result<(i64, u64)> {
+    let clock = Clock::get().map_err(|_| error!(crate::error::LendingError::InvalidInstruction))?;
+    Ok((clock.unix_timestamp, clock.slot))
 }

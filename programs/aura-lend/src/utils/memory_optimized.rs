@@ -96,8 +96,9 @@ impl<T: Default + Clone> MemoryPool<T> {
         let index = chunk_id * self.chunk_size;
         self.stats.allocations += 1;
 
-        // We know this will succeed since we just added the chunk
-        let chunk = self.chunks.get_mut(chunk_id).unwrap();
+        // Safe to unwrap since we just added the chunk
+        let chunk = self.chunks.get_mut(chunk_id)
+            .ok_or(crate::error::LendingError::InvalidInstruction)?;
         Ok((index, &mut chunk[0]))
     }
 
