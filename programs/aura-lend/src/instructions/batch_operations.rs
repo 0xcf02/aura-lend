@@ -47,15 +47,17 @@ pub struct BatchContext {
 }
 
 impl BatchContext {
-    pub fn new() -> Self {
-        Self {
-            start_time: Clock::get().unwrap().unix_timestamp,
+    pub fn new() -> Result<Self> {
+        Ok(Self {
+            start_time: Clock::get()
+                .map_err(|_| error!(crate::error::LendingError::InvalidInstruction))?
+                .unix_timestamp,
             operations_processed: 0,
             operations_failed: 0,
             total_gas_used: 0,
             cache_hits: 0,
             cache_misses: 0,
-        }
+        })
     }
 
     pub fn record_operation(&mut self, success: bool, gas_used: u64) {

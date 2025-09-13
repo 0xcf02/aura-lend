@@ -311,7 +311,7 @@ jobs:
         echo "Cluster: $(solana config get | grep 'RPC URL')"
         
         # Verify program exists and get current version if upgrading
-        if solana program show 11111111111111111111111111111112 2>/dev/null; then
+        if solana program show AuraLendVxVxVxVxVxVxVxVxVxVxVxVxVxVxVxVxVxVxV 2>/dev/null; then
           echo "Existing program found - this will be an upgrade"
         else
           echo "New program deployment"
@@ -339,7 +339,7 @@ jobs:
     - name: Verify deployment
       run: |
         # Verify the program was deployed successfully
-        PROGRAM_ID="11111111111111111111111111111112"
+        PROGRAM_ID="AuraLendVxVxVxVxVxVxVxVxVxVxVxVxVxVxVxVxVxVxV"
         solana program show $PROGRAM_ID || echo "⚠️ Program verification failed - may be first deployment"
 
         echo "✅ Program deployment completed!"
