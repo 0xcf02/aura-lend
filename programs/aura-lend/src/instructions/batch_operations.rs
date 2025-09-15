@@ -1,9 +1,9 @@
-use anchor_lang::prelude::*;
+use crate::constants::*;
 use crate::error::LendingError;
-use crate::utils::math::Decimal;
 use crate::state::obligation::{ObligationCollateral, ObligationLiquidity};
 use crate::state::obligation_optimized::ObligationOptimized;
-use crate::constants::*;
+use crate::utils::math::Decimal;
+use anchor_lang::prelude::*;
 use std::collections::HashMap;
 
 /// Batch operation types for optimized processing
@@ -99,10 +99,10 @@ impl BatchProcessor {
         }
 
         let mut results = Vec::with_capacity(operations.len());
-        
+
         // Group operations by type for better cache locality
         let grouped_ops = self.group_operations_by_type(operations);
-        
+
         // Process each group to maximize cache reuse
         for (op_type, ops) in grouped_ops.into_iter() {
             let group_results = self.process_operation_group(&op_type, &ops, accounts)?;
@@ -118,14 +118,14 @@ impl BatchProcessor {
         operations: &[BatchOperation],
     ) -> std::collections::HashMap<BatchOperationType, Vec<(usize, &BatchOperation)>> {
         let mut grouped = std::collections::HashMap::new();
-        
+
         for (index, op) in operations.iter().enumerate() {
             grouped
                 .entry(op.operation_type.clone())
                 .or_insert_with(Vec::new)
                 .push((index, op));
         }
-        
+
         grouped
     }
 
@@ -137,7 +137,7 @@ impl BatchProcessor {
         accounts: &[AccountInfo],
     ) -> Result<Vec<BatchOperationResult>> {
         let mut results = Vec::new();
-        
+
         match op_type {
             BatchOperationType::UpdateCollateral => {
                 results = self.batch_update_collateral(operations, accounts)?;
@@ -155,7 +155,7 @@ impl BatchProcessor {
                 results = self.batch_interest_accrual(operations, accounts)?;
             }
         }
-        
+
         Ok(results)
     }
 
@@ -166,23 +166,27 @@ impl BatchProcessor {
         accounts: &[AccountInfo],
     ) -> Result<Vec<BatchOperationResult>> {
         let mut results = Vec::new();
-        
+
         // Pre-load all required obligations into cache
         self.preload_obligations(operations, accounts)?;
-        
+
         for (op_index, operation) in operations {
             let start_gas = 0; // Would measure actual gas usage
-            
+
             let result = self.update_single_collateral(operation, accounts);
             let success = result.is_ok();
-            
+
             if let Err(e) = result {
-                msg!("Collateral update failed for operation {}: {:?}", op_index, e);
+                msg!(
+                    "Collateral update failed for operation {}: {:?}",
+                    op_index,
+                    e
+                );
             }
-            
+
             let gas_used = 1000; // Would calculate actual gas usage
             self.stats.record_operation(success, gas_used);
-            
+
             results.push(BatchOperationResult {
                 operation_id: *op_index as u32,
                 success,
@@ -190,7 +194,7 @@ impl BatchProcessor {
                 gas_used,
             });
         }
-        
+
         Ok(results)
     }
 
@@ -201,18 +205,18 @@ impl BatchProcessor {
         accounts: &[AccountInfo],
     ) -> Result<Vec<BatchOperationResult>> {
         let mut results = Vec::new();
-        
+
         self.preload_obligations(operations, accounts)?;
-        
+
         for (op_index, operation) in operations {
             let start_gas = 0;
-            
+
             let result = self.update_single_borrow(operation, accounts);
             let success = result.is_ok();
-            
+
             let gas_used = 1200; // Borrows are slightly more expensive
             self.stats.record_operation(success, gas_used);
-            
+
             results.push(BatchOperationResult {
                 operation_id: *op_index as u32,
                 success,
@@ -220,7 +224,7 @@ impl BatchProcessor {
                 gas_used,
             });
         }
-        
+
         Ok(results)
     }
 
@@ -231,22 +235,21 @@ impl BatchProcessor {
         accounts: &[AccountInfo],
     ) -> Result<Vec<BatchOperationResult>> {
         let mut results = Vec::new();
-        
+
         // Collect all obligation keys for batch processing
-        let obligation_keys: Vec<Pubkey> = operations
-            .iter()
-            .map(|(_, op)| op.obligation_key)
-            .collect();
-        
+        let obligation_keys: Vec<Pubkey> =
+            operations.iter().map(|(_, op)| op.obligation_key).collect();
+
         // Vectorized health factor calculation
-        let health_factors = self.calculate_health_factors_vectorized(&obligation_keys, accounts)?;
-        
+        let health_factors =
+            self.calculate_health_factors_vectorized(&obligation_keys, accounts)?;
+
         for ((op_index, operation), health_factor) in operations.iter().zip(health_factors.iter()) {
             let success = health_factor.is_some();
             let gas_used = 800; // Health factor calculation is relatively cheap when batched
-            
+
             self.stats.record_operation(success, gas_used);
-            
+
             results.push(BatchOperationResult {
                 operation_id: *op_index as u32,
                 success,
@@ -254,7 +257,7 @@ impl BatchProcessor {
                 gas_used,
             });
         }
-        
+
         Ok(results)
     }
 
@@ -265,25 +268,25 @@ impl BatchProcessor {
         accounts: &[AccountInfo],
     ) -> Result<Vec<BatchOperationResult>> {
         let mut results = Vec::new();
-        
+
         // First pass: quick health factor screening
-        let obligation_keys: Vec<Pubkey> = operations
-            .iter()
-            .map(|(_, op)| op.obligation_key)
-            .collect();
-        
-        let health_factors = self.calculate_health_factors_vectorized(&obligation_keys, accounts)?;
-        
-        for ((op_index, _operation), health_factor) in operations.iter().zip(health_factors.iter()) {
+        let obligation_keys: Vec<Pubkey> =
+            operations.iter().map(|(_, op)| op.obligation_key).collect();
+
+        let health_factors =
+            self.calculate_health_factors_vectorized(&obligation_keys, accounts)?;
+
+        for ((op_index, _operation), health_factor) in operations.iter().zip(health_factors.iter())
+        {
             let success = health_factor.is_some();
             let is_liquidatable = health_factor
                 .map(|hf| hf.value < Decimal::one().value)
                 .unwrap_or(false);
-            
+
             let gas_used = if is_liquidatable { 1500 } else { 500 }; // Liquidation prep is more expensive
-            
+
             self.stats.record_operation(success, gas_used);
-            
+
             results.push(BatchOperationResult {
                 operation_id: *op_index as u32,
                 success,
@@ -291,7 +294,7 @@ impl BatchProcessor {
                 gas_used,
             });
         }
-        
+
         Ok(results)
     }
 
@@ -302,11 +305,11 @@ impl BatchProcessor {
         accounts: &[AccountInfo],
     ) -> Result<Vec<BatchOperationResult>> {
         let mut results = Vec::new();
-        
+
         // Group by reserve for compound interest calculations
-        let mut reserve_groups: std::collections::HashMap<Pubkey, Vec<(usize, &BatchOperation)>> = 
+        let mut reserve_groups: std::collections::HashMap<Pubkey, Vec<(usize, &BatchOperation)>> =
             std::collections::HashMap::new();
-        
+
         for (op_index, operation) in operations {
             if let Some(reserve_key) = operation.reserve_key {
                 reserve_groups
@@ -315,13 +318,14 @@ impl BatchProcessor {
                     .push((*op_index, operation));
             }
         }
-        
+
         // Process each reserve group for efficient interest calculation
         for (reserve_key, reserve_ops) in reserve_groups {
-            let reserve_results = self.process_reserve_interest_batch(&reserve_key, &reserve_ops, accounts)?;
+            let reserve_results =
+                self.process_reserve_interest_batch(&reserve_key, &reserve_ops, accounts)?;
             results.extend(reserve_results);
         }
-        
+
         Ok(results)
     }
 
@@ -333,21 +337,22 @@ impl BatchProcessor {
         accounts: &[AccountInfo],
     ) -> Result<Vec<BatchOperationResult>> {
         let mut results = Vec::new();
-        
+
         // Get current interest rate for the reserve (would fetch from reserve account)
         let current_rate = Decimal::from_scaled_val(50000000000000000); // 5% APR example
         let time_delta = 3600; // 1 hour example
-        
+
         for (op_index, operation) in operations {
             let start_gas = 0;
-            
+
             // Apply compound interest to the position
-            let result = self.apply_compound_interest(operation, current_rate, time_delta, accounts);
+            let result =
+                self.apply_compound_interest(operation, current_rate, time_delta, accounts);
             let success = result.is_ok();
-            
+
             let gas_used = 900; // Interest calculation gas cost
             self.stats.record_operation(success, gas_used);
-            
+
             results.push(BatchOperationResult {
                 operation_id: *op_index as u32,
                 success,
@@ -355,7 +360,7 @@ impl BatchProcessor {
                 gas_used,
             });
         }
-        
+
         Ok(results)
     }
 
@@ -365,11 +370,9 @@ impl BatchProcessor {
         operations: &[(usize, &BatchOperation)],
         accounts: &[AccountInfo],
     ) -> Result<()> {
-        let unique_obligations: std::collections::HashSet<Pubkey> = operations
-            .iter()
-            .map(|(_, op)| op.obligation_key)
-            .collect();
-        
+        let unique_obligations: std::collections::HashSet<Pubkey> =
+            operations.iter().map(|(_, op)| op.obligation_key).collect();
+
         for obligation_key in unique_obligations {
             if !self.obligation_cache.contains_key(&obligation_key) {
                 // Load obligation from account (would implement actual loading)
@@ -380,7 +383,7 @@ impl BatchProcessor {
                 self.stats.cache_hits += 1;
             }
         }
-        
+
         Ok(())
     }
 
@@ -391,7 +394,7 @@ impl BatchProcessor {
         accounts: &[AccountInfo],
     ) -> Result<Vec<Option<Decimal>>> {
         let mut health_factors = Vec::with_capacity(obligation_keys.len());
-        
+
         for &obligation_key in obligation_keys {
             if let Some(obligation) = self.obligation_cache.get(&obligation_key) {
                 let health_factor = obligation.calculate_health_factor().ok();
@@ -400,7 +403,7 @@ impl BatchProcessor {
                 health_factors.push(None);
             }
         }
-        
+
         Ok(health_factors)
     }
 
@@ -414,7 +417,8 @@ impl BatchProcessor {
             if let (Some(reserve_key), Some(amount)) = (operation.reserve_key, operation.amount) {
                 // Find and update collateral
                 if let Some(collateral) = obligation.find_collateral_deposit_mut(&reserve_key) {
-                    collateral.deposited_amount = collateral.deposited_amount
+                    collateral.deposited_amount = collateral
+                        .deposited_amount
                         .checked_add(amount)
                         .ok_or(LendingError::MathOverflow)?;
                 }
@@ -429,7 +433,9 @@ impl BatchProcessor {
         accounts: &[AccountInfo],
     ) -> Result<()> {
         if let Some(obligation) = self.obligation_cache.get_mut(&operation.obligation_key) {
-            if let (Some(reserve_key), Some(amount)) = (operation.reserve_key, operation.decimal_amount) {
+            if let (Some(reserve_key), Some(amount)) =
+                (operation.reserve_key, operation.decimal_amount)
+            {
                 if let Some(borrow) = obligation.find_liquidity_borrow_mut(&reserve_key) {
                     borrow.borrowed_amount_wads = borrow.borrowed_amount_wads.try_add(amount)?;
                 }
@@ -454,11 +460,11 @@ impl BatchProcessor {
                         interest_factor.value,
                         time_delta as u32,
                     )?;
-                    
-                    let new_amount = borrow.borrowed_amount_wads.try_mul(
-                        Decimal::from_scaled_val(compound_factor)
-                    )?;
-                    
+
+                    let new_amount = borrow
+                        .borrowed_amount_wads
+                        .try_mul(Decimal::from_scaled_val(compound_factor))?;
+
                     borrow.borrowed_amount_wads = new_amount;
                 }
             }
@@ -501,7 +507,7 @@ impl BatchProcessor {
 pub struct BatchProcessInstruction<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
-    
+
     #[account(mut)]
     pub market: AccountInfo<'info>,
 }
@@ -514,16 +520,14 @@ pub fn process_batch_operations<'a>(
     let mut processor = BatchProcessor::new(MAX_BATCH_OPERATIONS);
 
     // Collect all accounts including remaining accounts
-    let mut all_accounts = vec![
-        ctx.accounts.market.clone(),
-    ];
+    let mut all_accounts = vec![ctx.accounts.market.clone()];
     // Clone the remaining accounts to avoid lifetime issues
     for account in ctx.remaining_accounts.iter() {
         all_accounts.push(account.clone());
     }
-    
+
     let results = processor.process_batch_operations(&operations, &all_accounts)?;
-    
+
     // Log performance metrics
     let stats = processor.get_statistics();
     msg!(
@@ -532,7 +536,7 @@ pub fn process_batch_operations<'a>(
         stats.operations_failed,
         processor.cache_efficiency() * 100.0
     );
-    
+
     Ok(results)
 }
 
@@ -543,17 +547,15 @@ mod tests {
     #[test]
     fn test_batch_processor() {
         let mut processor = BatchProcessor::new(10);
-        
-        let operations = vec![
-            BatchOperation {
-                operation_type: BatchOperationType::UpdateCollateral,
-                obligation_key: Pubkey::new_unique(),
-                reserve_key: Some(Pubkey::new_unique()),
-                amount: Some(1000),
-                decimal_amount: None,
-            }
-        ];
-        
+
+        let operations = vec![BatchOperation {
+            operation_type: BatchOperationType::UpdateCollateral,
+            obligation_key: Pubkey::new_unique(),
+            reserve_key: Some(Pubkey::new_unique()),
+            amount: Some(1000),
+            decimal_amount: None,
+        }];
+
         // Test operation grouping
         let grouped = processor.group_operations_by_type(&operations);
         assert_eq!(grouped.len(), 1);
@@ -563,10 +565,10 @@ mod tests {
     #[test]
     fn test_batch_context() {
         let mut context = BatchContext::new();
-        
+
         context.record_operation(true, 1000);
         context.record_operation(false, 1200);
-        
+
         assert_eq!(context.operations_processed, 2);
         assert_eq!(context.operations_failed, 1);
         assert_eq!(context.total_gas_used, 2200);

@@ -1,8 +1,8 @@
-use anchor_lang::prelude::*;
+use crate::error::LendingError;
 use crate::state::*;
 use crate::utils::config::*;
 use crate::utils::rbac::*;
-use crate::error::LendingError;
+use anchor_lang::prelude::*;
 
 /// Initialize protocol configuration
 #[derive(Accounts)]
@@ -15,32 +15,32 @@ pub struct InitializeConfig<'info> {
         bump
     )]
     pub config: Account<'info, ProtocolConfig>,
-    
+
     #[account(mut)]
     pub authority: Signer<'info>,
-    
+
     pub system_program: Program<'info, System>,
 }
 
-pub fn initialize_config(
-    ctx: Context<InitializeConfig>,
-    params: ConfigUpdateParams,
-) -> Result<()> {
+pub fn initialize_config(ctx: Context<InitializeConfig>, params: ConfigUpdateParams) -> Result<()> {
     let config = &mut ctx.accounts.config;
     let clock = Clock::get()?;
-    
+
     // Initialize with default values
     *config = ProtocolConfig::default();
     config.authority = ctx.accounts.authority.key();
-    
+
     // Apply any custom parameters
     params.apply_to(config);
-    
+
     // Validate and update timestamps
     config.update(&clock)?;
-    
-    msg!("Protocol configuration initialized by: {}", ctx.accounts.authority.key());
-    
+
+    msg!(
+        "Protocol configuration initialized by: {}",
+        ctx.accounts.authority.key()
+    );
+
     Ok(())
 }
 
@@ -53,16 +53,16 @@ pub struct UpdateConfig<'info> {
         bump
     )]
     pub config: Account<'info, ProtocolConfig>,
-    
+
     #[account(
         seeds = [b"governance"],
         bump
     )]
     pub governance: Account<'info, GovernanceRegistry>,
-    
+
     #[account(mut)]
     pub authority: Signer<'info>,
-    
+
     #[account(
         init,
         payer = authority,
@@ -71,7 +71,7 @@ pub struct UpdateConfig<'info> {
         bump
     )]
     pub config_history: Account<'info, ConfigHistory>,
-    
+
     pub system_program: Program<'info, System>,
 }
 
@@ -84,7 +84,7 @@ pub fn update_config(
     let governance = &ctx.accounts.governance;
     let authority = &ctx.accounts.authority;
     let clock = Clock::get()?;
-    
+
     // Verify authority has appropriate permissions
     let required_permission = match timelock_priority {
         TimelockPriority::Critical => "SUPER_ADMIN",
@@ -92,12 +92,12 @@ pub fn update_config(
         TimelockPriority::Medium => "RISK_MANAGER",
         TimelockPriority::Low => "FEE_MANAGER",
     };
-    
+
     require!(
         governance.has_permission(authority.key(), required_permission)?,
         LendingError::InsufficientPermissions
     );
-    
+
     // Create history record before updating
     let config_history = &mut ctx.accounts.config_history;
     config_history.version = 1;
@@ -106,19 +106,22 @@ pub fn update_config(
     config_history.updated_at_slot = clock.slot;
     config_history.updated_at_timestamp = clock.unix_timestamp as u64;
     config_history.changes = Vec::new();
-    
+
     // Track changes for audit
     track_config_changes(config, &params, &mut config_history.changes);
-    
+
     // Apply updates
     params.apply_to(config);
-    
+
     // Validate and update timestamps
     config.update(&clock)?;
-    
-    msg!("Protocol configuration updated by: {} with priority: {:?}", 
-         authority.key(), timelock_priority);
-    
+
+    msg!(
+        "Protocol configuration updated by: {} with priority: {:?}",
+        authority.key(),
+        timelock_priority
+    );
+
     Ok(())
 }
 
@@ -131,13 +134,13 @@ pub struct EmergencyConfigUpdate<'info> {
         bump
     )]
     pub config: Account<'info, ProtocolConfig>,
-    
+
     #[account(
         seeds = [b"governance"],
         bump
     )]
     pub governance: Account<'info, GovernanceRegistry>,
-    
+
     #[account(mut)]
     pub emergency_authority: Signer<'info>,
 }
@@ -150,27 +153,30 @@ pub fn emergency_config_update(
     let governance = &ctx.accounts.governance;
     let authority = &ctx.accounts.emergency_authority;
     let clock = Clock::get()?;
-    
+
     // Verify emergency authority
     require!(
-        governance.has_permission(authority.key(), "EMERGENCY_RESPONDER")? || 
-        governance.has_permission(authority.key(), "SUPER_ADMIN")?,
+        governance.has_permission(authority.key(), "EMERGENCY_RESPONDER")?
+            || governance.has_permission(authority.key(), "SUPER_ADMIN")?,
         LendingError::InsufficientPermissions
     );
-    
+
     // Apply emergency settings
     config.emergency_mode = emergency_params.emergency_mode;
     config.pause_deposits = emergency_params.pause_deposits;
     config.pause_withdrawals = emergency_params.pause_withdrawals;
     config.pause_borrows = emergency_params.pause_borrows;
     config.pause_liquidations = emergency_params.pause_liquidations;
-    
+
     // Update timestamps
     config.update(&clock)?;
-    
-    msg!("Emergency configuration update by: {}, emergency_mode: {}", 
-         authority.key(), config.emergency_mode);
-    
+
+    msg!(
+        "Emergency configuration update by: {}, emergency_mode: {}",
+        authority.key(),
+        config.emergency_mode
+    );
+
     Ok(())
 }
 
@@ -213,7 +219,7 @@ fn track_config_changes(
             });
         }
     }
-    
+
     if let Some(value) = params.default_protocol_fee_bps {
         if value != current.default_protocol_fee_bps {
             changes.push(ConfigChange {
@@ -223,7 +229,7 @@ fn track_config_changes(
             });
         }
     }
-    
+
     if let Some(value) = params.emergency_mode {
         if value != current.emergency_mode {
             changes.push(ConfigChange {
@@ -233,16 +239,13 @@ fn track_config_changes(
             });
         }
     }
-    
+
     // Add more parameter tracking as needed
     // This is a simplified version - in production, you'd want to track all parameters
 }
 
 /// Configuration validation helper
-pub fn validate_config_update(
-    config: &ProtocolConfig,
-    params: &ConfigUpdateParams,
-) -> Result<()> {
+pub fn validate_config_update(config: &ProtocolConfig, params: &ConfigUpdateParams) -> Result<()> {
     // Create a temporary config to validate
     let mut temp_config = *config;
     params.apply_to(&mut temp_config);
@@ -252,7 +255,7 @@ pub fn validate_config_update(
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_emergency_config_params() {
         let params = EmergencyConfigParams {
@@ -262,14 +265,14 @@ mod tests {
             pause_borrows: true,
             pause_liquidations: false,
         };
-        
+
         let mut config = ProtocolConfig::default();
         config.emergency_mode = params.emergency_mode;
         config.pause_deposits = params.pause_deposits;
         config.pause_withdrawals = params.pause_withdrawals;
         config.pause_borrows = params.pause_borrows;
         config.pause_liquidations = params.pause_liquidations;
-        
+
         assert!(config.is_emergency_mode());
         assert!(config.is_deposits_paused());
         assert!(config.is_withdrawals_paused()); // Emergency mode affects withdrawals

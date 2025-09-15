@@ -1,16 +1,16 @@
+pub mod governance;
 pub mod market;
-pub mod reserve;
+pub mod multisig;
 pub mod obligation;
 pub mod obligation_optimized;
-pub mod multisig;
+pub mod reserve;
 pub mod timelock;
-pub mod governance;
 
 // Re-export commonly used state types
+pub use governance::*;
 pub use market::*;
-pub use reserve::*;
+pub use multisig::*;
 pub use obligation::*;
 pub use obligation_optimized::*;
-pub use multisig::*;
+pub use reserve::*;
 pub use timelock::*;
-pub use governance::*;

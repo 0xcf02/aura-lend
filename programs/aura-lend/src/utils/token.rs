@@ -1,7 +1,7 @@
-use anchor_lang::prelude::*;
-use anchor_spl::token::{self, Token, TokenAccount, Mint, Transfer, MintTo, Burn};
-use spl_token::instruction::AuthorityType;
 use crate::error::LendingError;
+use anchor_lang::prelude::*;
+use anchor_spl::token::{self, Burn, Mint, MintTo, Token, TokenAccount, Transfer};
+use spl_token::instruction::AuthorityType;
 
 /// Token utility functions for SPL token operations
 pub struct TokenUtils;

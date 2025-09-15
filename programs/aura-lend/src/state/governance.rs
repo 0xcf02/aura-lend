@@ -1,25 +1,25 @@
-use anchor_lang::prelude::*;
 use crate::constants::*;
 use crate::error::LendingError;
+use anchor_lang::prelude::*;
 
 /// Governance system for role-based access control
 #[account]
 pub struct GovernanceRegistry {
     /// Version of the governance registry
     pub version: u8,
-    
+
     /// The multisig that controls this governance system
     pub multisig: Pubkey,
-    
+
     /// List of all active roles
     pub roles: Vec<GovernanceRole>,
-    
+
     /// Global permissions that can be granted
     pub available_permissions: u64, // Bitmap of all possible permissions
-    
+
     /// Timestamp when registry was created
     pub created_at: i64,
-    
+
     /// Reserved space for future upgrades
     pub reserved: [u8; 128],
 }
@@ -27,7 +27,7 @@ pub struct GovernanceRegistry {
 impl GovernanceRegistry {
     /// Maximum number of concurrent roles
     pub const MAX_ROLES: usize = 50;
-    
+
     /// Account size calculation
     pub const SIZE: usize = 8 + // discriminator
         1 + // version
@@ -40,19 +40,19 @@ impl GovernanceRegistry {
     /// Create a new governance registry
     pub fn new(multisig: Pubkey) -> Result<Self> {
         let clock = Clock::get()?;
-        
+
         // Initialize with all permissions available
-        let available_permissions = Permission::SUPER_ADMIN.bits() |
-            Permission::RESERVE_MANAGER.bits() |
-            Permission::RISK_MANAGER.bits() |
-            Permission::ORACLE_MANAGER.bits() |
-            Permission::EMERGENCY_RESPONDER.bits() |
-            Permission::FEE_MANAGER.bits() |
-            Permission::GOVERNANCE_MANAGER.bits() |
-            Permission::TIMELOCK_MANAGER.bits() |
-            Permission::PROGRAM_UPGRADE_MANAGER.bits() |
-            Permission::DATA_MIGRATION_MANAGER.bits();
-        
+        let available_permissions = Permission::SUPER_ADMIN.bits()
+            | Permission::RESERVE_MANAGER.bits()
+            | Permission::RISK_MANAGER.bits()
+            | Permission::ORACLE_MANAGER.bits()
+            | Permission::EMERGENCY_RESPONDER.bits()
+            | Permission::FEE_MANAGER.bits()
+            | Permission::GOVERNANCE_MANAGER.bits()
+            | Permission::TIMELOCK_MANAGER.bits()
+            | Permission::PROGRAM_UPGRADE_MANAGER.bits()
+            | Permission::DATA_MIGRATION_MANAGER.bits();
+
         Ok(Self {
             version: PROGRAM_VERSION,
             multisig,
@@ -62,7 +62,7 @@ impl GovernanceRegistry {
             reserved: [0; 128],
         })
     }
-    
+
     /// Grant a role to an account
     pub fn grant_role(
         &mut self,
@@ -76,17 +76,17 @@ impl GovernanceRegistry {
         if self.roles.len() >= Self::MAX_ROLES {
             return Err(LendingError::TooManyRoles.into());
         }
-        
+
         // Check if account already has an active role
         if self.get_active_role(&holder).is_some() {
             return Err(LendingError::AccountAlreadyHasRole.into());
         }
-        
+
         // Validate permissions are available
         if (permissions & self.available_permissions) != permissions {
             return Err(LendingError::InvalidPermissions.into());
         }
-        
+
         let clock = Clock::get()?;
         let role = GovernanceRole {
             holder,
@@ -97,27 +97,32 @@ impl GovernanceRegistry {
             granted_by,
             is_active: true,
         };
-        
+
         self.roles.push(role);
         Ok(())
     }
-    
+
     /// Revoke a role from an account
     pub fn revoke_role(&mut self, holder: &Pubkey) -> Result<()> {
-        if let Some(role) = self.roles.iter_mut().find(|r| r.holder == *holder && r.is_active) {
+        if let Some(role) = self
+            .roles
+            .iter_mut()
+            .find(|r| r.holder == *holder && r.is_active)
+        {
             role.is_active = false;
             Ok(())
         } else {
             Err(LendingError::RoleNotFound.into())
         }
     }
-    
+
     /// Get active role for an account
     pub fn get_active_role(&self, holder: &Pubkey) -> Option<&GovernanceRole> {
-        self.roles.iter()
+        self.roles
+            .iter()
             .find(|r| r.holder == *holder && r.is_active && !r.is_expired().unwrap_or(true))
     }
-    
+
     /// Check if account has specific permission
     pub fn has_permission(&self, holder: &Pubkey, permission: Permission) -> bool {
         if let Some(role) = self.get_active_role(holder) {
@@ -126,16 +131,18 @@ impl GovernanceRegistry {
             false
         }
     }
-    
+
     /// Check if account has any of the specified permissions
     pub fn has_any_permission(&self, holder: &Pubkey, permissions: &[Permission]) -> bool {
         if let Some(role) = self.get_active_role(holder) {
-            permissions.iter().any(|p| (role.permissions & p.bits()) != 0)
+            permissions
+                .iter()
+                .any(|p| (role.permissions & p.bits()) != 0)
         } else {
             false
         }
     }
-    
+
     /// Clean up expired roles
     pub fn cleanup_expired_roles(&mut self) -> Result<usize> {
         let initial_count = self.roles.len();
@@ -149,22 +156,22 @@ impl GovernanceRegistry {
 pub struct GovernanceRole {
     /// Account that holds this role
     pub holder: Pubkey,
-    
+
     /// Type of role
     pub role_type: RoleType,
-    
+
     /// Permissions bitmap
     pub permissions: u64,
-    
+
     /// When this role was granted
     pub granted_at: i64,
-    
+
     /// Optional expiration time
     pub expires_at: Option<i64>,
-    
+
     /// Account that granted this role
     pub granted_by: Pubkey,
-    
+
     /// Whether this role is currently active
     pub is_active: bool,
 }
@@ -179,7 +186,7 @@ impl GovernanceRole {
             Ok(false)
         }
     }
-    
+
     /// Check if role has a specific permission
     pub fn has_permission(&self, permission: Permission) -> bool {
         self.is_active && (self.permissions & permission.bits()) != 0
@@ -226,40 +233,40 @@ pub struct Permission {
 impl Permission {
     /// Super admin - all permissions
     pub const SUPER_ADMIN: Self = Self { bits: u64::MAX };
-    
+
     /// Can initialize and configure reserves
     pub const RESERVE_MANAGER: Self = Self { bits: 1 << 0 };
-    
+
     /// Can update risk parameters (LTV, liquidation thresholds, etc.)
     pub const RISK_MANAGER: Self = Self { bits: 1 << 1 };
-    
+
     /// Can manage oracle configurations and feeds
     pub const ORACLE_MANAGER: Self = Self { bits: 1 << 2 };
-    
+
     /// Can pause protocol and handle emergencies
     pub const EMERGENCY_RESPONDER: Self = Self { bits: 1 << 3 };
-    
+
     /// Can manage protocol fees and fee collection
     pub const FEE_MANAGER: Self = Self { bits: 1 << 4 };
-    
+
     /// Can grant and revoke roles
     pub const GOVERNANCE_MANAGER: Self = Self { bits: 1 << 5 };
-    
+
     /// Can create and execute timelock proposals
     pub const TIMELOCK_MANAGER: Self = Self { bits: 1 << 6 };
-    
+
     /// Can update interest rate models
     pub const RATE_MANAGER: Self = Self { bits: 1 << 7 };
-    
+
     /// Can manage collateral configurations
     pub const COLLATERAL_MANAGER: Self = Self { bits: 1 << 8 };
-    
+
     /// Can execute liquidations (for automated liquidators)
     pub const LIQUIDATION_MANAGER: Self = Self { bits: 1 << 9 };
-    
+
     /// Can manage program upgrades and upgrade authority
     pub const PROGRAM_UPGRADE_MANAGER: Self = Self { bits: 1 << 10 };
-    
+
     /// Can perform data migrations between versions
     pub const DATA_MIGRATION_MANAGER: Self = Self { bits: 1 << 11 };
 
@@ -267,15 +274,17 @@ impl Permission {
     pub fn bits(&self) -> u64 {
         self.bits
     }
-    
+
     /// Check if contains another permission
     pub fn contains(&self, other: Permission) -> bool {
         (self.bits & other.bits) == other.bits
     }
-    
+
     /// Combine permissions
     pub fn union(&self, other: Permission) -> Permission {
-        Permission { bits: self.bits | other.bits }
+        Permission {
+            bits: self.bits | other.bits,
+        }
     }
 }
 
@@ -295,7 +304,7 @@ impl PermissionChecker {
             Err(LendingError::InsufficientPermissions.into())
         }
     }
-    
+
     /// Check if account has any of the required permissions
     pub fn check_any_permission(
         governance: &GovernanceRegistry,

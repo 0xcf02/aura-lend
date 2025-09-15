@@ -1,9 +1,9 @@
-use anchor_lang::prelude::*;
-use anchor_spl::token::{self, Token, TokenAccount, Mint, Transfer, MintTo, Burn};
-use crate::state::*;
-use crate::error::LendingError;
 use crate::constants::*;
-use crate::utils::{TokenUtils, validate_signer};
+use crate::error::LendingError;
+use crate::state::*;
+use crate::utils::{validate_signer, TokenUtils};
+use anchor_lang::prelude::*;
+use anchor_spl::token::{self, Burn, Mint, MintTo, Token, TokenAccount, Transfer};
 
 /// Deposit liquidity into a reserve and receive collateral tokens (aTokens)
 pub fn deposit_reserve_liquidity(
@@ -20,7 +20,11 @@ pub fn deposit_reserve_liquidity(
     }
 
     // Check if reserve allows deposits
-    if reserve.config.flags.contains(ReserveConfigFlags::DEPOSITS_DISABLED) {
+    if reserve
+        .config
+        .flags
+        .contains(ReserveConfigFlags::DEPOSITS_DISABLED)
+    {
         return Err(LendingError::FeatureDisabled.into());
     }
 
@@ -34,13 +38,13 @@ pub fn deposit_reserve_liquidity(
         return Err(LendingError::ReentrantCall.into());
     }
     reserve.reentrancy_guard = true;
-    
+
     // Refresh reserve interest before deposit
     reserve.update_interest(clock.slot)?;
 
     // Calculate collateral amount to mint
     let collateral_amount = reserve.liquidity_to_collateral(liquidity_amount)?;
-    
+
     if collateral_amount == 0 {
         return Err(LendingError::AmountTooSmall.into());
     }
@@ -81,7 +85,9 @@ pub fn deposit_reserve_liquidity(
 
     // Update reserve state
     reserve.add_liquidity(liquidity_amount)?;
-    reserve.state.collateral_mint_supply = reserve.state.collateral_mint_supply
+    reserve.state.collateral_mint_supply = reserve
+        .state
+        .collateral_mint_supply
         .checked_add(collateral_amount)
         .ok_or(LendingError::MathOverflow)?;
 
@@ -112,7 +118,11 @@ pub fn redeem_reserve_collateral(
     }
 
     // Check if reserve allows withdrawals
-    if reserve.config.flags.contains(ReserveConfigFlags::WITHDRAWALS_DISABLED) {
+    if reserve
+        .config
+        .flags
+        .contains(ReserveConfigFlags::WITHDRAWALS_DISABLED)
+    {
         return Err(LendingError::FeatureDisabled.into());
     }
 
@@ -126,7 +136,7 @@ pub fn redeem_reserve_collateral(
         return Err(LendingError::ReentrantCall.into());
     }
     reserve.reentrancy_guard = true;
-    
+
     // Refresh reserve interest before withdrawal
     reserve.update_interest(clock.slot)?;
 
@@ -171,7 +181,9 @@ pub fn redeem_reserve_collateral(
 
     // Update reserve state
     reserve.remove_liquidity(liquidity_amount)?;
-    reserve.state.collateral_mint_supply = reserve.state.collateral_mint_supply
+    reserve.state.collateral_mint_supply = reserve
+        .state
+        .collateral_mint_supply
         .checked_sub(collateral_amount)
         .ok_or(LendingError::MathUnderflow)?;
 

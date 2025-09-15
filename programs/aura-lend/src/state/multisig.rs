@@ -1,6 +1,6 @@
-use anchor_lang::prelude::*;
 use crate::constants::*;
 use crate::error::LendingError;
+use anchor_lang::prelude::*;
 
 /// Multi-signature wallet for critical protocol operations
 /// Requires multiple signatures before execution
@@ -8,22 +8,22 @@ use crate::error::LendingError;
 pub struct MultiSig {
     /// Version of the multisig account structure
     pub version: u8,
-    
+
     /// List of public keys that can sign transactions
     pub signatories: Vec<Pubkey>,
-    
+
     /// Number of signatures required to execute a transaction
     pub threshold: u8,
-    
+
     /// Current nonce to prevent replay attacks
     pub nonce: u64,
-    
+
     /// The market this multisig controls
     pub market: Pubkey,
-    
+
     /// Timestamp when this multisig was created
     pub created_at: i64,
-    
+
     /// Reserved space for future upgrades
     pub reserved: [u8; 128],
 }
@@ -31,7 +31,7 @@ pub struct MultiSig {
 impl MultiSig {
     /// Maximum number of signatories allowed
     pub const MAX_SIGNATORIES: usize = 10;
-    
+
     /// Account size calculation
     pub const SIZE: usize = 8 + // discriminator
         1 + // version
@@ -43,21 +43,17 @@ impl MultiSig {
         128; // reserved
 
     /// Create a new multisig wallet
-    pub fn new(
-        signatories: Vec<Pubkey>,
-        threshold: u8,
-        market: Pubkey,
-    ) -> Result<Self> {
+    pub fn new(signatories: Vec<Pubkey>, threshold: u8, market: Pubkey) -> Result<Self> {
         // Validate threshold
         if threshold == 0 || threshold as usize > signatories.len() {
             return Err(LendingError::InvalidMultisigThreshold.into());
         }
-        
+
         // Validate number of signatories
         if signatories.is_empty() || signatories.len() > Self::MAX_SIGNATORIES {
             return Err(LendingError::InvalidSignatoryCount.into());
         }
-        
+
         // Validate no duplicate signatories
         let mut sorted_sigs = signatories.clone();
         sorted_sigs.sort();
@@ -66,7 +62,7 @@ impl MultiSig {
                 return Err(LendingError::DuplicateSignatory.into());
             }
         }
-        
+
         let clock = Clock::get()?;
         Ok(Self {
             version: PROGRAM_VERSION,
@@ -78,15 +74,16 @@ impl MultiSig {
             reserved: [0; 128],
         })
     }
-    
+
     /// Check if a pubkey is a valid signatory
     pub fn is_signatory(&self, pubkey: &Pubkey) -> bool {
         self.signatories.contains(pubkey)
     }
-    
+
     /// Increment nonce to prevent replay attacks
     pub fn increment_nonce(&mut self) -> Result<u64> {
-        self.nonce = self.nonce
+        self.nonce = self
+            .nonce
             .checked_add(1)
             .ok_or(LendingError::MathOverflow)?;
         Ok(self.nonce)
@@ -98,34 +95,34 @@ impl MultiSig {
 pub struct MultisigProposal {
     /// Version of the proposal account structure
     pub version: u8,
-    
+
     /// The multisig this proposal belongs to
     pub multisig: Pubkey,
-    
+
     /// Current nonce of the multisig when this proposal was created
     pub nonce: u64,
-    
+
     /// Type of operation being proposed
     pub operation_type: MultisigOperationType,
-    
+
     /// Serialized instruction data for the operation
     pub instruction_data: Vec<u8>,
-    
+
     /// List of signatories who have signed this proposal
     pub signatures: Vec<Pubkey>,
-    
+
     /// Status of the proposal
     pub status: ProposalStatus,
-    
+
     /// Timestamp when proposal was created
     pub created_at: i64,
-    
+
     /// Timestamp when proposal expires (optional)
     pub expires_at: Option<i64>,
-    
+
     /// The account that created this proposal
     pub proposer: Pubkey,
-    
+
     /// Reserved space for future upgrades
     pub reserved: [u8; 64],
 }
@@ -133,7 +130,7 @@ pub struct MultisigProposal {
 impl MultisigProposal {
     /// Maximum size of instruction data
     pub const MAX_INSTRUCTION_SIZE: usize = 1024;
-    
+
     /// Account size calculation
     pub const SIZE: usize = 8 + // discriminator
         1 + // version
@@ -160,7 +157,7 @@ impl MultisigProposal {
         if instruction_data.len() > Self::MAX_INSTRUCTION_SIZE {
             return Err(LendingError::InstructionTooLarge.into());
         }
-        
+
         let clock = Clock::get()?;
         Ok(Self {
             version: PROGRAM_VERSION,
@@ -176,22 +173,22 @@ impl MultisigProposal {
             reserved: [0; 64],
         })
     }
-    
+
     /// Add a signature to the proposal
     pub fn add_signature(&mut self, signatory: &Pubkey) -> Result<()> {
         if self.signatures.contains(signatory) {
             return Err(LendingError::AlreadySigned.into());
         }
-        
+
         self.signatures.push(*signatory);
         Ok(())
     }
-    
+
     /// Check if proposal has enough signatures
     pub fn has_enough_signatures(&self, threshold: u8) -> bool {
         self.signatures.len() >= threshold as usize
     }
-    
+
     /// Check if proposal is expired
     pub fn is_expired(&self) -> Result<bool> {
         if let Some(expires_at) = self.expires_at {
@@ -201,23 +198,23 @@ impl MultisigProposal {
             Ok(false)
         }
     }
-    
+
     /// Mark proposal as executed
     pub fn mark_executed(&mut self) -> Result<()> {
         if self.status != ProposalStatus::Active {
             return Err(LendingError::ProposalNotActive.into());
         }
-        
+
         self.status = ProposalStatus::Executed;
         Ok(())
     }
-    
+
     /// Mark proposal as cancelled
     pub fn mark_cancelled(&mut self) -> Result<()> {
         if self.status != ProposalStatus::Active {
             return Err(LendingError::ProposalNotActive.into());
         }
-        
+
         self.status = ProposalStatus::Cancelled;
         Ok(())
     }

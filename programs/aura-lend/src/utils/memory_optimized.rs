@@ -1,7 +1,7 @@
-use anchor_lang::prelude::*;
 use crate::error::LendingError;
 use crate::utils::math::Decimal;
-use std::mem::{size_of, align_of};
+use anchor_lang::prelude::*;
+use std::mem::{align_of, size_of};
 
 /// Memory-optimized data structures with cache-friendly layouts
 /// Focuses on minimizing cache misses and improving memory access patterns
@@ -15,27 +15,27 @@ pub struct ObligationCacheOptimized {
     pub market: Pubkey,
     pub owner: Pubkey,
     pub last_update_slot: u64,
-    
+
     // Financial data - grouped for cache efficiency (cache line 2)
-    pub deposited_value_usd: Decimal,      // 16 bytes
-    pub borrowed_value_usd: Decimal,       // 16 bytes  
+    pub deposited_value_usd: Decimal, // 16 bytes
+    pub borrowed_value_usd: Decimal,  // 16 bytes
     pub liquidation_snapshot_health_factor: Option<Decimal>, // 16 bytes + 1 tag
-    pub last_update_timestamp: u64,       // 8 bytes
+    pub last_update_timestamp: u64,   // 8 bytes
     // Total: ~57 bytes, fits in cache line
-    
+
     // Cold data - less frequently accessed
     pub deposit_count: u8,
     pub borrow_count: u8,
-    
+
     // Variable length data stored separately to avoid fragmentation
-    pub deposits_ptr: u64,      // Pointer to deposits array
-    pub borrows_ptr: u64,       // Pointer to borrows array
-    
+    pub deposits_ptr: u64, // Pointer to deposits array
+    pub borrows_ptr: u64,  // Pointer to borrows array
+
     // Performance metrics grouped together
     pub lookup_count: u32,
     pub cache_hits: u32,
     pub last_health_calculation: u64,
-    
+
     // Reserved space aligned to cache boundary
     pub reserved: [u8; 32],
 }
@@ -66,7 +66,7 @@ impl<T: Default + Clone> MemoryPool<T> {
     pub fn new(chunk_size: usize) -> Self {
         let initial_chunk = vec![T::default(); chunk_size].into_boxed_slice();
         let free_list: Vec<usize> = (0..chunk_size).collect();
-        
+
         Self {
             chunks: vec![initial_chunk],
             free_list,
@@ -97,7 +97,9 @@ impl<T: Default + Clone> MemoryPool<T> {
         self.stats.allocations += 1;
 
         // Safe to unwrap since we just added the chunk
-        let chunk = self.chunks.get_mut(chunk_id)
+        let chunk = self
+            .chunks
+            .get_mut(chunk_id)
             .ok_or(crate::error::LendingError::InvalidInstruction)?;
         Ok((index, &mut chunk[0]))
     }
@@ -108,7 +110,6 @@ impl<T: Default + Clone> MemoryPool<T> {
         self.stats.deallocations += 1;
     }
 
-
     /// Get pool statistics
     pub fn get_stats(&self) -> &PoolStats {
         &self.stats
@@ -118,7 +119,7 @@ impl<T: Default + Clone> MemoryPool<T> {
     pub fn compact(&mut self) {
         // Sort free list to improve locality
         self.free_list.sort();
-        
+
         // Calculate fragmentation ratio
         let total_slots = self.chunks.len() * self.chunk_size;
         let free_slots = self.free_list.len();
@@ -134,11 +135,11 @@ pub struct CollateralArrays {
     pub deposited_amounts: Vec<u64>,
     pub market_values_usd: Vec<u64>, // Stored as scaled integers for better packing
     pub liquidation_thresholds: Vec<u16>, // Basis points fit in u16
-    pub loan_to_value_ratios: Vec<u16>,   // Basis points fit in u16
-    
+    pub loan_to_value_ratios: Vec<u16>, // Basis points fit in u16
+
     /// Index mapping for O(1) lookup by reserve key
     pub reserve_to_index: std::collections::HashMap<Pubkey, usize>,
-    
+
     /// Length tracking
     pub length: usize,
 }
@@ -170,32 +171,32 @@ impl CollateralArrays {
         }
 
         let index = self.length;
-        
+
         // Add to parallel arrays
         self.reserve_keys.push(reserve);
         self.deposited_amounts.push(amount);
         self.market_values_usd.push(market_value.try_floor_u64()?);
         self.liquidation_thresholds.push(liquidation_threshold_bps);
         self.loan_to_value_ratios.push(ltv_bps);
-        
+
         // Update index
         self.reserve_to_index.insert(reserve, index);
         self.length += 1;
-        
+
         Ok(())
     }
 
     /// Get collateral by reserve with O(1) lookup
     pub fn get_collateral(&self, reserve: &Pubkey) -> Option<CollateralView> {
-        self.reserve_to_index.get(reserve).map(|&index| {
-            CollateralView {
+        self.reserve_to_index
+            .get(reserve)
+            .map(|&index| CollateralView {
                 reserve: self.reserve_keys[index],
                 deposited_amount: self.deposited_amounts[index],
                 market_value_usd: self.market_values_usd[index],
                 liquidation_threshold_bps: self.liquidation_thresholds[index],
                 loan_to_value_bps: self.loan_to_value_ratios[index],
-            }
-        })
+            })
     }
 
     /// Vectorized calculation of total value - cache-friendly
@@ -212,43 +213,45 @@ impl CollateralArrays {
 
         let mut total_value = 0u128;
         let mut weighted_ltv = 0u128;
-        
+
         // Parallel iteration over arrays - compiler can optimize with SIMD
         for i in 0..self.length {
             let value = self.market_values_usd[i] as u128;
             let ltv = self.loan_to_value_ratios[i] as u128;
-            
+
             total_value += value;
             weighted_ltv += value * ltv;
         }
-        
+
         if total_value == 0 {
             return Ok(0);
         }
-        
+
         Ok((weighted_ltv / total_value) as u64)
     }
 
     /// Remove collateral efficiently
     pub fn remove_collateral(&mut self, reserve: &Pubkey) -> Result<()> {
-        let index = self.reserve_to_index.remove(reserve)
+        let index = self
+            .reserve_to_index
+            .remove(reserve)
             .ok_or(LendingError::ObligationReserveNotFound)?;
-        
+
         // Use swap_remove for O(1) removal (trades order for performance)
         self.reserve_keys.swap_remove(index);
         self.deposited_amounts.swap_remove(index);
         self.market_values_usd.swap_remove(index);
         self.liquidation_thresholds.swap_remove(index);
         self.loan_to_value_ratios.swap_remove(index);
-        
+
         self.length -= 1;
-        
+
         // Update index map for swapped element
         if index < self.length {
             let swapped_reserve = self.reserve_keys[index];
             self.reserve_to_index.insert(swapped_reserve, index);
         }
-        
+
         Ok(())
     }
 }
@@ -271,7 +274,8 @@ pub mod prefetch {
     pub fn prefetch_obligations(_obligation_keys: &[Pubkey], accounts: &[AccountInfo]) {
         // In a real implementation, this would use CPU prefetch instructions
         // For now, we simulate by accessing the first few bytes of each account
-        for account in accounts.iter().take(8) { // Limit to prevent excessive work
+        for account in accounts.iter().take(8) {
+            // Limit to prevent excessive work
             if !account.data.borrow().is_empty() {
                 let _ = account.data.borrow()[0]; // Touch first byte to trigger cache load
             }
@@ -280,16 +284,16 @@ pub mod prefetch {
 
     /// Sequential access pattern for cache-friendly iteration
     pub fn sequential_health_factor_calculation(
-        obligations: &[ObligationCacheOptimized]
+        obligations: &[ObligationCacheOptimized],
     ) -> Vec<Option<Decimal>> {
         let mut results = Vec::with_capacity(obligations.len());
-        
+
         // Process in sequential order for optimal cache usage
         for obligation in obligations {
             let health_factor = calculate_health_factor_cached(obligation);
             results.push(health_factor);
         }
-        
+
         results
     }
 
@@ -299,13 +303,16 @@ pub mod prefetch {
         if obligation.borrowed_value_usd.is_zero() {
             return Some(Decimal::from_integer(u64::MAX).unwrap_or(Decimal::zero()));
         }
-        
+
         if obligation.deposited_value_usd.is_zero() {
             return Some(Decimal::zero());
         }
-        
+
         // Simple calculation using cached values
-        obligation.deposited_value_usd.try_div(obligation.borrowed_value_usd).ok()
+        obligation
+            .deposited_value_usd
+            .try_div(obligation.borrowed_value_usd)
+            .ok()
     }
 }
 
@@ -331,16 +338,16 @@ pub mod allocation_strategies {
         pub fn allocate<T>(&mut self, count: usize) -> Result<&mut [T]> {
             let size = size_of::<T>() * count;
             let align = align_of::<T>();
-            
+
             // Align offset
             let aligned_offset = (self.offset + align - 1) & !(align - 1);
-            
+
             if aligned_offset + size > self.buffer.len() {
                 return Err(LendingError::InsufficientMemory.into());
             }
-            
+
             self.offset = aligned_offset + size;
-            
+
             // Cast buffer slice to T slice
             let ptr = self.buffer[aligned_offset..].as_mut_ptr() as *mut T;
             Ok(unsafe { std::slice::from_raw_parts_mut(ptr, count) })
@@ -375,16 +382,16 @@ pub mod allocation_strategies {
         pub fn push<T>(&mut self, count: usize) -> Result<&mut [T]> {
             let size = size_of::<T>() * count;
             let align = align_of::<T>();
-            
+
             let aligned_top = (self.top + align - 1) & !(align - 1);
-            
+
             if aligned_top + size > SIZE {
                 return Err(LendingError::StackOverflow.into());
             }
-            
+
             let old_top = aligned_top;
             self.top = aligned_top + size;
-            
+
             let ptr = self.buffer[old_top..].as_mut_ptr() as *mut T;
             Ok(unsafe { std::slice::from_raw_parts_mut(ptr, count) })
         }
@@ -407,13 +414,13 @@ pub mod cache_algorithms {
         block_size: usize,
     ) -> Vec<Option<Decimal>> {
         let mut results = Vec::with_capacity(obligations.len());
-        
+
         // Process in blocks to maintain cache locality
         for chunk in obligations.chunks(block_size) {
             let block_results = prefetch::sequential_health_factor_calculation(chunk);
             results.extend(block_results);
         }
-        
+
         results
     }
 
@@ -444,10 +451,10 @@ pub mod cache_algorithms {
     fn merge_cache_friendly<T: Ord + Clone>(data: &mut [T], mid: usize) {
         let mut temp = Vec::with_capacity(data.len());
         let (left, right) = data.split_at(mid);
-        
+
         let mut i = 0;
         let mut j = 0;
-        
+
         // Merge with cache-friendly access patterns
         while i < left.len() && j < right.len() {
             if left[i] <= right[j] {
@@ -458,10 +465,10 @@ pub mod cache_algorithms {
                 j += 1;
             }
         }
-        
+
         temp.extend_from_slice(&left[i..]);
         temp.extend_from_slice(&right[j..]);
-        
+
         data.clone_from_slice(&temp);
     }
 }
@@ -473,23 +480,23 @@ mod tests {
     #[test]
     fn test_memory_pool() {
         let mut pool: MemoryPool<u64> = MemoryPool::new(4);
-        
+
         // Test allocation
         let (index1, value1) = pool.allocate().unwrap();
         *value1 = 42;
-        
+
         let (index2, value2) = pool.allocate().unwrap();
         *value2 = 84;
-        
+
         assert_ne!(index1, index2);
-        
+
         // Test deallocation
         pool.deallocate(index1);
-        
+
         // Test reallocation of deallocated slot
         let (index3, value3) = pool.allocate().unwrap();
         assert_eq!(index1, index3); // Should reuse deallocated slot
-        
+
         let stats = pool.get_stats();
         assert_eq!(stats.allocations, 3);
         assert_eq!(stats.deallocations, 1);
@@ -498,20 +505,22 @@ mod tests {
     #[test]
     fn test_collateral_arrays() {
         let mut arrays = CollateralArrays::new();
-        
+
         let reserve = Pubkey::new_unique();
-        arrays.add_collateral(
-            reserve,
-            1000,
-            Decimal::from_integer(1000).unwrap(),
-            8000,
-            7500,
-        ).unwrap();
-        
+        arrays
+            .add_collateral(
+                reserve,
+                1000,
+                Decimal::from_integer(1000).unwrap(),
+                8000,
+                7500,
+            )
+            .unwrap();
+
         let collateral = arrays.get_collateral(&reserve).unwrap();
         assert_eq!(collateral.deposited_amount, 1000);
         assert_eq!(collateral.liquidation_threshold_bps, 8000);
-        
+
         let total_value = arrays.calculate_total_value();
         assert_eq!(total_value, 1000);
     }
@@ -519,15 +528,15 @@ mod tests {
     #[test]
     fn test_arena_allocator() {
         let mut arena = allocation_strategies::ArenaAllocator::new(1024);
-        
+
         let slice1: &mut [u64] = arena.allocate(10).unwrap();
         assert_eq!(slice1.len(), 10);
-        
+
         let slice2: &mut [u32] = arena.allocate(5).unwrap();
         assert_eq!(slice2.len(), 5);
-        
+
         assert!(arena.utilization() > 0.0);
-        
+
         arena.reset();
         assert_eq!(arena.utilization(), 0.0);
     }

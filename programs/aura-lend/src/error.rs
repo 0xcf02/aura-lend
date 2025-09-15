@@ -57,7 +57,7 @@ pub enum LendingError {
     ObligationHealthy,
     #[msg("Liquidation amount too large")]
     LiquidationTooLarge,
-    
+
     // Oracle errors
     #[msg("Oracle price is stale")]
     OraclePriceStale,
@@ -149,7 +149,7 @@ pub enum LendingError {
     FeatureDisabled,
     #[msg("Operation not permitted")]
     OperationNotPermitted,
-    
+
     // Reentrancy protection errors
     #[msg("Operation already in progress - reentrancy detected")]
     OperationInProgress,

@@ -1,5 +1,5 @@
-use anchor_lang::prelude::*;
 use crate::constants::*;
+use anchor_lang::prelude::*;
 
 /// Global market state account
 /// This account contains the overall configuration and state of the lending protocol
@@ -7,40 +7,40 @@ use crate::constants::*;
 pub struct Market {
     /// Version of the market account structure
     pub version: u8,
-    
+
     /// The multisig wallet that controls market parameters
     pub multisig_owner: Pubkey,
-    
+
     /// Emergency authority that can pause the protocol (can be multisig or single key)
     pub emergency_authority: Pubkey,
-    
+
     /// Governance registry for role-based access control
     pub governance: Pubkey,
-    
+
     /// Timelock controller for delayed operations
     pub timelock_controller: Pubkey,
-    
+
     /// Quote currency (typically USDC) mint for price calculations
     pub quote_currency: Pubkey,
-    
+
     /// Token mint for the AURA governance token
     pub aura_token_mint: Pubkey,
-    
+
     /// Authority for minting AURA tokens (rewards distributor PDA)
     pub aura_mint_authority: Pubkey,
-    
+
     /// Total number of reserves initialized in this market
     pub reserves_count: u64,
-    
+
     /// Fees collected by the protocol (in quote currency)
     pub total_fees_collected: u64,
-    
+
     /// Timestamp of the last market state update
     pub last_update_timestamp: u64,
-    
+
     /// Global protocol flags
     pub flags: MarketFlags,
-    
+
     /// Reserved space for future upgrades
     pub reserved: [u8; 256],
 }
@@ -124,7 +124,8 @@ impl Market {
 
     /// Add fees to the total collected
     pub fn add_fees(&mut self, fee_amount: u64) -> Result<()> {
-        self.total_fees_collected = self.total_fees_collected
+        self.total_fees_collected = self
+            .total_fees_collected
             .checked_add(fee_amount)
             .ok_or(crate::error::LendingError::MathOverflow)?;
         Ok(())
@@ -135,7 +136,8 @@ impl Market {
         if self.reserves_count >= MAX_RESERVES as u64 {
             return Err(crate::error::LendingError::InvalidReserveConfig.into());
         }
-        self.reserves_count = self.reserves_count
+        self.reserves_count = self
+            .reserves_count
             .checked_add(1)
             .ok_or(crate::error::LendingError::MathOverflow)?;
         Ok(())
@@ -151,16 +153,16 @@ pub struct MarketFlags {
 impl MarketFlags {
     /// Market is paused - no operations allowed
     pub const PAUSED: Self = Self { bits: 1 << 0 };
-    
+
     /// Emergency mode - only withdrawals and liquidations allowed
     pub const EMERGENCY: Self = Self { bits: 1 << 1 };
-    
+
     /// Lending is disabled - no new deposits
     pub const LENDING_DISABLED: Self = Self { bits: 1 << 2 };
-    
+
     /// Borrowing is disabled - no new borrows
     pub const BORROWING_DISABLED: Self = Self { bits: 1 << 3 };
-    
+
     /// Liquidations are disabled
     pub const LIQUIDATION_DISABLED: Self = Self { bits: 1 << 4 };
 

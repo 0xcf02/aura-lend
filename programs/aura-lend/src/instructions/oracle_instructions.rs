@@ -1,8 +1,8 @@
-use anchor_lang::prelude::*;
-use crate::state::*;
-use crate::error::LendingError;
 use crate::constants::*;
-use crate::utils::{OracleManager, math::Decimal};
+use crate::error::LendingError;
+use crate::state::*;
+use crate::utils::{math::Decimal, OracleManager};
+use anchor_lang::prelude::*;
 
 /// Refresh reserve interest rates and oracle prices
 pub fn refresh_reserve(ctx: Context<RefreshReserve>) -> Result<()> {
@@ -42,10 +42,12 @@ pub fn refresh_obligation(ctx: Context<RefreshObligation>) -> Result<()> {
     // Update collateral values
     for (i, deposit) in obligation.deposits.iter_mut().enumerate() {
         // Get corresponding reserve and price oracle from remaining accounts
-        let reserve_info = ctx.remaining_accounts
+        let reserve_info = ctx
+            .remaining_accounts
             .get(i * 2)
             .ok_or(LendingError::InvalidAccount)?;
-        let oracle_info = ctx.remaining_accounts
+        let oracle_info = ctx
+            .remaining_accounts
             .get(i * 2 + 1)
             .ok_or(LendingError::InvalidAccount)?;
 
@@ -60,7 +62,7 @@ pub fn refresh_obligation(ctx: Context<RefreshObligation>) -> Result<()> {
             return Err(LendingError::InvalidAccount.into());
         }
 
-        // Get fresh price  
+        // Get fresh price
         let oracle_price = OracleManager::get_pyth_price(oracle_info, &reserve.oracle_feed_id)?;
         oracle_price.validate(clock.unix_timestamp)?;
 
@@ -83,10 +85,12 @@ pub fn refresh_obligation(ctx: Context<RefreshObligation>) -> Result<()> {
     let deposit_count = obligation.deposits.len();
     for (i, borrow) in obligation.borrows.iter_mut().enumerate() {
         // Get corresponding reserve and price oracle from remaining accounts
-        let reserve_info = ctx.remaining_accounts
+        let reserve_info = ctx
+            .remaining_accounts
             .get(deposit_count * 2 + i * 2)
             .ok_or(LendingError::InvalidAccount)?;
-        let oracle_info = ctx.remaining_accounts
+        let oracle_info = ctx
+            .remaining_accounts
             .get(deposit_count * 2 + i * 2 + 1)
             .ok_or(LendingError::InvalidAccount)?;
 
@@ -101,7 +105,7 @@ pub fn refresh_obligation(ctx: Context<RefreshObligation>) -> Result<()> {
             return Err(LendingError::InvalidAccount.into());
         }
 
-        // Get fresh price  
+        // Get fresh price
         let oracle_price = OracleManager::get_pyth_price(oracle_info, &reserve.oracle_feed_id)?;
         oracle_price.validate(clock.unix_timestamp)?;
 
@@ -125,7 +129,7 @@ pub fn refresh_obligation(ctx: Context<RefreshObligation>) -> Result<()> {
 
     // Calculate health factor for logging
     let health_factor = obligation.calculate_health_factor()?;
-    
+
     msg!(
         "Obligation refreshed - deposited: ${:.2}, borrowed: ${:.2}, health factor: {:.3}",
         total_deposited_value.try_floor_u64()? as f64 / 1e18,
@@ -139,7 +143,7 @@ pub fn refresh_obligation(ctx: Context<RefreshObligation>) -> Result<()> {
 /// Update multiple reserves in a single transaction for efficiency
 pub fn refresh_multiple_reserves(ctx: Context<RefreshMultipleReserves>) -> Result<()> {
     let clock = Clock::get()?;
-    
+
     // Process each reserve from remaining accounts
     for i in (0..ctx.remaining_accounts.len()).step_by(2) {
         let reserve_info = &ctx.remaining_accounts[i];
@@ -160,15 +164,17 @@ pub fn refresh_multiple_reserves(ctx: Context<RefreshMultipleReserves>) -> Resul
 
         // Serialize reserve back with comprehensive error handling
         let mut serialized_data = Vec::new();
-        reserve.try_serialize(&mut serialized_data)
-            .map_err(|e| {
-                msg!("Failed to serialize reserve {}: {:?}", reserve_info.key, e);
-                LendingError::InvalidAccount
-            })?;
-            
+        reserve.try_serialize(&mut serialized_data).map_err(|e| {
+            msg!("Failed to serialize reserve {}: {:?}", reserve_info.key, e);
+            LendingError::InvalidAccount
+        })?;
+
         // Verify serialization was successful by checking data length
         if reserve_data_slice.len() > 0 {
-            msg!("Warning: Reserve serialization may be incomplete - {} bytes remaining", reserve_data_slice.len());
+            msg!(
+                "Warning: Reserve serialization may be incomplete - {} bytes remaining",
+                reserve_data_slice.len()
+            );
         }
     }
 
@@ -251,7 +257,6 @@ pub struct RefreshObligation<'info> {
         has_one = market @ LendingError::InvalidMarketState
     )]
     pub obligation: Account<'info, Obligation>,
-
     // Note: Additional reserve and oracle accounts are passed as remaining_accounts
     // Format: [reserve1, oracle1, reserve2, oracle2, ...] for deposits
     //         [reserve1, oracle1, reserve2, oracle2, ...] for borrows
@@ -265,7 +270,6 @@ pub struct RefreshMultipleReserves<'info> {
         bump
     )]
     pub market: Account<'info, Market>,
-
     // Note: Reserve and oracle accounts are passed as remaining_accounts
     // Format: [reserve1, oracle1, reserve2, oracle2, ...]
 }

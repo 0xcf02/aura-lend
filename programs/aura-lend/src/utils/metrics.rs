@@ -1,46 +1,46 @@
-use anchor_lang::prelude::*;
 use crate::error::LendingError;
 use crate::utils::math::Decimal;
+use anchor_lang::prelude::*;
 
 /// Protocol metrics for monitoring and analytics
 #[account]
 pub struct ProtocolMetrics {
     /// Version for upgradability
     pub version: u8,
-    
+
     /// Market this metrics belongs to
     pub market: Pubkey,
-    
+
     /// Total Value Locked (TVL) across all reserves
     pub total_value_locked_usd: u64,
-    
+
     /// Total borrowed amount across all reserves
     pub total_borrowed_usd: u64,
-    
+
     /// Total fees collected by the protocol
     pub total_fees_collected_usd: u64,
-    
+
     /// Number of active users
     pub active_users: u32,
-    
+
     /// Number of active reserves
     pub active_reserves: u32,
-    
+
     /// Number of liquidations in the last 24h
     pub liquidations_24h: u32,
-    
+
     /// Average health factor of all obligations
     pub average_health_factor: u64, // In basis points
-    
+
     /// Protocol utilization rate (borrowed / supplied)
     pub protocol_utilization_rate: u64, // In basis points
-    
+
     /// Last update timestamp
     pub last_update_timestamp: u64,
-    
+
     /// Last update slot
     pub last_update_slot: u64,
-    
+
     /// Reserved space for future metrics
     pub reserved: [u8; 128],
 }
@@ -65,7 +65,7 @@ impl ProtocolMetrics {
     /// Create new protocol metrics
     pub fn new(market: Pubkey) -> Result<Self> {
         let clock = Clock::get()?;
-        
+
         Ok(Self {
             version: 1,
             market,
@@ -94,28 +94,29 @@ impl ProtocolMetrics {
         avg_health_factor: u64,
     ) -> Result<()> {
         let clock = Clock::get()?;
-        
+
         self.total_value_locked_usd = tvl_usd;
         self.total_borrowed_usd = borrowed_usd;
         self.total_fees_collected_usd = fees_collected_usd;
         self.active_users = active_users;
         self.active_reserves = active_reserves;
         self.average_health_factor = avg_health_factor;
-        
+
         // Calculate utilization rate
         if tvl_usd > 0 {
             self.protocol_utilization_rate = ((borrowed_usd as u128)
                 .checked_mul(10000)
                 .ok_or(LendingError::MathOverflow)?
                 .checked_div(tvl_usd as u128)
-                .ok_or(LendingError::DivisionByZero)?) as u64;
+                .ok_or(LendingError::DivisionByZero)?)
+                as u64;
         } else {
             self.protocol_utilization_rate = 0;
         }
-        
+
         self.last_update_timestamp = clock.unix_timestamp as u64;
         self.last_update_slot = clock.slot;
-        
+
         Ok(())
     }
 
@@ -133,50 +134,50 @@ impl ProtocolMetrics {
 }
 
 /// Reserve-specific metrics
-#[account] 
+#[account]
 pub struct ReserveMetrics {
     /// Version for upgradability
     pub version: u8,
-    
+
     /// Reserve this metrics belongs to
     pub reserve: Pubkey,
-    
+
     /// Total supplied amount in native units
     pub total_supplied: u64,
-    
+
     /// Total borrowed amount in native units
     pub total_borrowed: u64,
-    
+
     /// Current utilization rate in basis points
     pub utilization_rate: u64,
-    
+
     /// Current supply APY in basis points
     pub supply_apy: u64,
-    
+
     /// Current borrow APY in basis points
     pub borrow_apy: u64,
-    
+
     /// Volume traded in the last 24h
     pub volume_24h: u64,
-    
+
     /// Number of suppliers
     pub supplier_count: u32,
-    
+
     /// Number of borrowers
     pub borrower_count: u32,
-    
+
     /// Largest single deposit
     pub largest_deposit: u64,
-    
+
     /// Largest single borrow
     pub largest_borrow: u64,
-    
+
     /// Last update timestamp
     pub last_update_timestamp: u64,
-    
+
     /// Last update slot
     pub last_update_slot: u64,
-    
+
     /// Reserved space
     pub reserved: [u8; 64],
 }
@@ -201,7 +202,7 @@ impl ReserveMetrics {
 
     pub fn new(reserve: Pubkey) -> Result<Self> {
         let clock = Clock::get()?;
-        
+
         Ok(Self {
             version: 1,
             reserve,
@@ -232,14 +233,14 @@ impl ReserveMetrics {
         borrower_count: u32,
     ) -> Result<()> {
         let clock = Clock::get()?;
-        
+
         self.total_supplied = supplied;
         self.total_borrowed = borrowed;
         self.supply_apy = supply_apy;
         self.borrow_apy = borrow_apy;
         self.supplier_count = supplier_count;
         self.borrower_count = borrower_count;
-        
+
         // Calculate utilization rate
         if supplied > 0 {
             self.utilization_rate = ((borrowed as u128)
@@ -250,10 +251,10 @@ impl ReserveMetrics {
         } else {
             self.utilization_rate = 0;
         }
-        
+
         self.last_update_timestamp = clock.unix_timestamp as u64;
         self.last_update_slot = clock.slot;
-        
+
         Ok(())
     }
 
@@ -287,7 +288,7 @@ impl MetricsAggregator {
         if health_factors.is_empty() {
             return 10000; // 100% if no obligations
         }
-        
+
         let sum: u128 = health_factors.iter().map(|&hf| hf as u128).sum();
         (sum / health_factors.len() as u128) as u64
     }
@@ -297,42 +298,58 @@ impl MetricsAggregator {
         if total_supplied == 0 {
             return 0;
         }
-        
+
         ((total_borrowed as u128)
             .saturating_mul(10000)
             .saturating_div(total_supplied as u128)) as u64
     }
 
     /// Detect anomalies in metrics
-    pub fn detect_anomalies(current_metrics: &ProtocolMetrics, previous_metrics: &ProtocolMetrics) -> Vec<String> {
+    pub fn detect_anomalies(
+        current_metrics: &ProtocolMetrics,
+        previous_metrics: &ProtocolMetrics,
+    ) -> Vec<String> {
         let mut anomalies = Vec::new();
-        
+
         // Check for sudden TVL drop (>20%)
         if current_metrics.total_value_locked_usd < previous_metrics.total_value_locked_usd {
-            let drop_percentage = ((previous_metrics.total_value_locked_usd - current_metrics.total_value_locked_usd) as u128)
+            let drop_percentage = ((previous_metrics.total_value_locked_usd
+                - current_metrics.total_value_locked_usd)
+                as u128)
                 .saturating_mul(100)
                 .saturating_div(previous_metrics.total_value_locked_usd as u128);
-            
+
             if drop_percentage > 20 {
                 anomalies.push(format!("TVL dropped by {}%", drop_percentage));
             }
         }
-        
+
         // Check for high liquidation activity
         if current_metrics.liquidations_24h > 100 {
-            anomalies.push(format!("High liquidation activity: {} liquidations", current_metrics.liquidations_24h));
+            anomalies.push(format!(
+                "High liquidation activity: {} liquidations",
+                current_metrics.liquidations_24h
+            ));
         }
-        
+
         // Check for low average health factor
-        if current_metrics.average_health_factor < 11000 { // Below 110%
-            anomalies.push(format!("Low average health factor: {}%", current_metrics.average_health_factor / 100));
+        if current_metrics.average_health_factor < 11000 {
+            // Below 110%
+            anomalies.push(format!(
+                "Low average health factor: {}%",
+                current_metrics.average_health_factor / 100
+            ));
         }
-        
+
         // Check for very high utilization
-        if current_metrics.protocol_utilization_rate > 9000 { // Above 90%
-            anomalies.push(format!("Very high utilization: {}%", current_metrics.protocol_utilization_rate / 100));
+        if current_metrics.protocol_utilization_rate > 9000 {
+            // Above 90%
+            anomalies.push(format!(
+                "Very high utilization: {}%",
+                current_metrics.protocol_utilization_rate / 100
+            ));
         }
-        
+
         anomalies
     }
 }
@@ -378,8 +395,8 @@ mod tests {
 
         let current = ProtocolMetrics {
             total_value_locked_usd: 700000, // 30% drop
-            liquidations_24h: 150, // High liquidations
-            average_health_factor: 10500, // Low health factor
+            liquidations_24h: 150,          // High liquidations
+            average_health_factor: 10500,   // Low health factor
             ..previous
         };
 

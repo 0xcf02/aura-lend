@@ -1,5 +1,5 @@
-use anchor_lang::prelude::*;
 use crate::state::{ReserveConfig, ReserveState};
+use anchor_lang::prelude::*;
 
 /// Current program version for upgrade compatibility
 pub const PROGRAM_VERSION: u8 = 1;

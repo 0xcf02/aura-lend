@@ -1,9 +1,9 @@
+use crate::constants::*;
+use crate::error::LendingError;
+use crate::state::*;
+use crate::utils::{math::Decimal, OracleManager, TokenUtils};
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Token, TokenAccount};
-use crate::state::*;
-use crate::error::LendingError;
-use crate::constants::*;
-use crate::utils::{TokenUtils, OracleManager, math::Decimal};
 
 /// Liquidate an unhealthy obligation
 pub fn liquidate_obligation(
@@ -22,8 +22,15 @@ pub fn liquidate_obligation(
     }
 
     // Check if reserves allow liquidations
-    if repay_reserve.config.flags.contains(ReserveConfigFlags::LIQUIDATIONS_DISABLED) ||
-       withdraw_reserve.config.flags.contains(ReserveConfigFlags::LIQUIDATIONS_DISABLED) {
+    if repay_reserve
+        .config
+        .flags
+        .contains(ReserveConfigFlags::LIQUIDATIONS_DISABLED)
+        || withdraw_reserve
+            .config
+            .flags
+            .contains(ReserveConfigFlags::LIQUIDATIONS_DISABLED)
+    {
         return Err(LendingError::FeatureDisabled.into());
     }
 
@@ -35,7 +42,7 @@ pub fn liquidate_obligation(
     // Lock reserves to prevent race conditions during liquidation
     repay_reserve.try_lock()?;
     withdraw_reserve.try_lock()?;
-    
+
     // Ensure we unlock on any error path
     let result = (|| -> Result<()> {
         // Refresh reserves with locked state
@@ -43,10 +50,7 @@ pub fn liquidate_obligation(
         withdraw_reserve.update_interest(clock.slot)?;
 
         // Refresh obligation with current prices to get accurate health factor
-        obligation.refresh_health_factor(
-            &ctx.remaining_accounts,
-            clock.unix_timestamp
-        )?;
+        obligation.refresh_health_factor(&ctx.remaining_accounts, clock.unix_timestamp)?;
 
         // Atomic health check - capture health factor at exact moment of liquidation
         let health_factor = obligation.calculate_health_factor()?;
@@ -56,10 +60,10 @@ pub fn liquidate_obligation(
 
         // Store health snapshot to prevent manipulation during liquidation
         obligation.liquidation_snapshot_health_factor = Some(health_factor);
-        
+
         Ok(())
     })();
-    
+
     // Unlock reserves regardless of result
     if result.is_err() {
         let _ = repay_reserve.unlock();
@@ -68,7 +72,8 @@ pub fn liquidate_obligation(
     }
 
     // Validate that the borrow exists
-    let _borrow = obligation.find_liquidity_borrow(&repay_reserve.key())
+    let _borrow = obligation
+        .find_liquidity_borrow(&repay_reserve.key())
         .ok_or(LendingError::ObligationReserveNotFound)?;
 
     // Check maximum liquidation amount (usually 50% of debt)
@@ -78,7 +83,8 @@ pub fn liquidate_obligation(
     }
 
     // Validate that collateral exists
-    let collateral = obligation.find_collateral_deposit(&withdraw_reserve.key())
+    let collateral = obligation
+        .find_collateral_deposit(&withdraw_reserve.key())
         .ok_or(LendingError::ObligationReserveNotFound)?;
 
     // Get current prices from oracles using proper feed IDs from reserves
@@ -113,7 +119,7 @@ pub fn liquidate_obligation(
     );
 
     let liquidation_value_usd = repay_value_usd.try_mul(liquidation_bonus_decimal)?;
-    
+
     // Convert USD value to collateral token amount
     let collateral_price_decimal = withdraw_price.to_decimal()?;
     let collateral_amount_decimal = liquidation_value_usd.try_div(collateral_price_decimal)?;
@@ -146,14 +152,16 @@ pub fn liquidate_obligation(
         &ctx.accounts.token_program,
         &ctx.accounts.withdraw_reserve_collateral_supply,
         &ctx.accounts.destination_collateral,
-        &ctx.accounts.withdraw_collateral_supply_authority.to_account_info(),
+        &ctx.accounts
+            .withdraw_collateral_supply_authority
+            .to_account_info(),
         &[collateral_authority_seeds],
         collateral_amount,
     )?;
 
     // Update reserves
     repay_reserve.repay_borrow(liquidity_amount)?;
-    
+
     // Update obligation
     obligation.repay_liquidity_borrow(
         &repay_reserve.key(),
@@ -163,16 +171,16 @@ pub fn liquidate_obligation(
     obligation.remove_collateral_deposit(&withdraw_reserve.key(), collateral_amount)?;
 
     // Update cached USD values
-    obligation.borrowed_value_usd = obligation.borrowed_value_usd
-        .try_sub(repay_value_usd)?;
-    
+    obligation.borrowed_value_usd = obligation.borrowed_value_usd.try_sub(repay_value_usd)?;
+
     let collateral_value_usd = OracleManager::calculate_usd_value(
         collateral_amount,
         &withdraw_price,
         withdraw_reserve.config.decimals,
     )?;
-    
-    obligation.deposited_value_usd = obligation.deposited_value_usd
+
+    obligation.deposited_value_usd = obligation
+        .deposited_value_usd
         .try_sub(collateral_value_usd)?;
 
     obligation.update_timestamp(clock.slot);
@@ -181,7 +189,7 @@ pub fn liquidate_obligation(
     let expected_collateral = repay_value_usd
         .try_div(withdraw_price.to_decimal()?)?
         .try_floor_u64()?;
-    
+
     let bonus_amount = if collateral_amount > expected_collateral {
         collateral_amount.saturating_sub(expected_collateral)
     } else {
@@ -261,18 +269,18 @@ pub fn flash_liquidate_obligation(
 
     // Step 2: Perform liquidation (simplified - assumes external liquidation logic)
     // In a real implementation, this would invoke the regular liquidation process
-    
+
     // Step 3: Validate flash loan repayment with proper balance checking
     let flash_loan_balance_after = ctx.accounts.flash_loan_source.amount;
-    
+
     // Store initial balance before flash loan for validation
     let expected_final_balance = ctx.accounts.flash_loan_reserve_liquidity_supply.amount;
-    
+
     // Validate that the source account has enough tokens for repayment + fee
     if flash_loan_balance_after < total_repayment {
         return Err(LendingError::FlashLoanNotRepaid.into());
     }
-    
+
     // Additional validation: ensure the repayment amount matches loan + fee exactly
     let available_for_repayment = flash_loan_balance_after;
     if available_for_repayment < total_repayment {
@@ -294,7 +302,7 @@ pub fn flash_liquidate_obligation(
     let expected_balance = expected_final_balance
         .checked_add(flash_loan_fee)
         .ok_or(LendingError::MathOverflow)?;
-    
+
     if final_reserve_balance < expected_balance {
         return Err(LendingError::FlashLoanFeeNotPaid.into());
     }
@@ -323,13 +331,14 @@ pub fn batch_liquidate_obligations(
     }
 
     let mut total_liquidated_value = 0u64;
-    
+
     for (i, params) in liquidation_params.iter().enumerate() {
         // Get accounts from remaining_accounts
-        let obligation_info = ctx.remaining_accounts
+        let obligation_info = ctx
+            .remaining_accounts
             .get(i * 6)
             .ok_or(LendingError::InvalidAccount)?;
-        
+
         // Validate obligation is unhealthy by deserializing and checking
         let obligation_data = obligation_info.try_borrow_data()?;
         let mut obligation_data_slice = obligation_data.as_ref();
@@ -555,6 +564,5 @@ pub struct BatchLiquidateObligations<'info> {
 
     /// Token program
     pub token_program: Program<'info, Token>,
-
     // Note: Individual obligation accounts are passed as remaining_accounts
 }

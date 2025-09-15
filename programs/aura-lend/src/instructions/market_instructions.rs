@@ -1,9 +1,9 @@
-use anchor_lang::prelude::*;
-use anchor_spl::token::{Token, Mint};
-use solana_program::program_option::COption;
-use crate::state::*;
-use crate::error::LendingError;
 use crate::constants::*;
+use crate::error::LendingError;
+use crate::state::*;
+use anchor_lang::prelude::*;
+use anchor_spl::token::{Mint, Token};
+use solana_program::program_option::COption;
 
 /// Initialize the lending market
 pub fn initialize_market(
@@ -43,7 +43,7 @@ pub fn initialize_reserve(
 
     // Validate reserve configuration
     validate_reserve_config(&params.config)?;
-    
+
     // Validate oracle feed ID is not empty
     if params.oracle_feed_id == [0u8; 32] {
         return Err(LendingError::OracleAccountMismatch.into());
@@ -65,7 +65,10 @@ pub fn initialize_reserve(
         params.config,
     )?;
 
-    msg!("Reserve initialized successfully for mint: {}", params.liquidity_mint);
+    msg!(
+        "Reserve initialized successfully for mint: {}",
+        params.liquidity_mint
+    );
     Ok(())
 }
 
@@ -75,10 +78,10 @@ pub fn update_reserve_config(
     params: UpdateReserveConfigParams,
 ) -> Result<()> {
     let reserve = &mut ctx.accounts.reserve;
-    
+
     // Validate new configuration
     validate_reserve_config(&params.config)?;
-    
+
     // Update configuration
     reserve.config = params.config;
     reserve.last_update_timestamp = Clock::get()?.unix_timestamp as u64;
@@ -114,7 +117,8 @@ fn validate_reserve_config(config: &ReserveConfig) -> Result<()> {
     }
 
     // Validate protocol fee
-    if config.protocol_fee_bps > BASIS_POINTS_PRECISION / 2 { // Max 50% protocol fee
+    if config.protocol_fee_bps > BASIS_POINTS_PRECISION / 2 {
+        // Max 50% protocol fee
         return Err(LendingError::InvalidReserveConfig.into());
     }
 

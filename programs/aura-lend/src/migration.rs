@@ -4,12 +4,8 @@ use crate::{
     constants::PROGRAM_VERSION,
     error::LendingError,
     state::{
-        market::Market,
-        reserve::Reserve,
-        obligation::Obligation,
-        multisig::MultiSig,
-        timelock::TimelockController,
-        governance::GovernanceRegistry,
+        governance::GovernanceRegistry, market::Market, multisig::MultiSig, obligation::Obligation,
+        reserve::Reserve, timelock::TimelockController,
     },
 };
 
@@ -39,7 +35,11 @@ impl Migratable for Market {
     }
 
     fn migrate(&mut self, from_version: u8) -> Result<()> {
-        msg!("Migrating Market from version {} to {}", from_version, PROGRAM_VERSION);
+        msg!(
+            "Migrating Market from version {} to {}",
+            from_version,
+            PROGRAM_VERSION
+        );
 
         match from_version {
             1 => {
@@ -67,7 +67,11 @@ impl Migratable for Reserve {
     }
 
     fn migrate(&mut self, from_version: u8) -> Result<()> {
-        msg!("Migrating Reserve from version {} to {}", from_version, PROGRAM_VERSION);
+        msg!(
+            "Migrating Reserve from version {} to {}",
+            from_version,
+            PROGRAM_VERSION
+        );
 
         match from_version {
             1 => {
@@ -79,7 +83,10 @@ impl Migratable for Reserve {
                 msg!("Reserve already at latest version");
             }
             _ => {
-                msg!("Unsupported Reserve migration from version {}", from_version);
+                msg!(
+                    "Unsupported Reserve migration from version {}",
+                    from_version
+                );
                 return Err(LendingError::UnsupportedMigration.into());
             }
         }
@@ -98,7 +105,11 @@ impl Migratable for Obligation {
     }
 
     fn migrate(&mut self, from_version: u8) -> Result<()> {
-        msg!("Migrating Obligation from version {} to {}", from_version, PROGRAM_VERSION);
+        msg!(
+            "Migrating Obligation from version {} to {}",
+            from_version,
+            PROGRAM_VERSION
+        );
 
         match from_version {
             1 => {
@@ -110,14 +121,20 @@ impl Migratable for Obligation {
                 msg!("Obligation already at latest version");
             }
             _ => {
-                msg!("Unsupported Obligation migration from version {}", from_version);
+                msg!(
+                    "Unsupported Obligation migration from version {}",
+                    from_version
+                );
                 return Err(LendingError::UnsupportedMigration.into());
             }
         }
 
         // Update version to current
         self.version = PROGRAM_VERSION;
-        msg!("Obligation migration completed to version {}", PROGRAM_VERSION);
+        msg!(
+            "Obligation migration completed to version {}",
+            PROGRAM_VERSION
+        );
         Ok(())
     }
 }
@@ -129,7 +146,11 @@ impl Migratable for MultiSig {
     }
 
     fn migrate(&mut self, from_version: u8) -> Result<()> {
-        msg!("Migrating MultiSig from version {} to {}", from_version, PROGRAM_VERSION);
+        msg!(
+            "Migrating MultiSig from version {} to {}",
+            from_version,
+            PROGRAM_VERSION
+        );
 
         match from_version {
             1 => {
@@ -141,14 +162,20 @@ impl Migratable for MultiSig {
                 msg!("MultiSig already at latest version");
             }
             _ => {
-                msg!("Unsupported MultiSig migration from version {}", from_version);
+                msg!(
+                    "Unsupported MultiSig migration from version {}",
+                    from_version
+                );
                 return Err(LendingError::UnsupportedMigration.into());
             }
         }
 
         // Update version to current
         self.version = PROGRAM_VERSION;
-        msg!("MultiSig migration completed to version {}", PROGRAM_VERSION);
+        msg!(
+            "MultiSig migration completed to version {}",
+            PROGRAM_VERSION
+        );
         Ok(())
     }
 }
@@ -160,7 +187,11 @@ impl Migratable for TimelockController {
     }
 
     fn migrate(&mut self, from_version: u8) -> Result<()> {
-        msg!("Migrating TimelockController from version {} to {}", from_version, PROGRAM_VERSION);
+        msg!(
+            "Migrating TimelockController from version {} to {}",
+            from_version,
+            PROGRAM_VERSION
+        );
 
         match from_version {
             1 => {
@@ -172,14 +203,20 @@ impl Migratable for TimelockController {
                 msg!("TimelockController already at latest version");
             }
             _ => {
-                msg!("Unsupported TimelockController migration from version {}", from_version);
+                msg!(
+                    "Unsupported TimelockController migration from version {}",
+                    from_version
+                );
                 return Err(LendingError::UnsupportedMigration.into());
             }
         }
 
         // Update version to current
         self.version = PROGRAM_VERSION;
-        msg!("TimelockController migration completed to version {}", PROGRAM_VERSION);
+        msg!(
+            "TimelockController migration completed to version {}",
+            PROGRAM_VERSION
+        );
         Ok(())
     }
 }
@@ -191,7 +228,11 @@ impl Migratable for GovernanceRegistry {
     }
 
     fn migrate(&mut self, from_version: u8) -> Result<()> {
-        msg!("Migrating GovernanceRegistry from version {} to {}", from_version, PROGRAM_VERSION);
+        msg!(
+            "Migrating GovernanceRegistry from version {} to {}",
+            from_version,
+            PROGRAM_VERSION
+        );
 
         match from_version {
             1 => {
@@ -203,14 +244,20 @@ impl Migratable for GovernanceRegistry {
                 msg!("GovernanceRegistry already at latest version");
             }
             _ => {
-                msg!("Unsupported GovernanceRegistry migration from version {}", from_version);
+                msg!(
+                    "Unsupported GovernanceRegistry migration from version {}",
+                    from_version
+                );
                 return Err(LendingError::UnsupportedMigration.into());
             }
         }
 
         // Update version to current
         self.version = PROGRAM_VERSION;
-        msg!("GovernanceRegistry migration completed to version {}", PROGRAM_VERSION);
+        msg!(
+            "GovernanceRegistry migration completed to version {}",
+            PROGRAM_VERSION
+        );
         Ok(())
     }
 }
@@ -218,7 +265,11 @@ impl Migratable for GovernanceRegistry {
 /// Generic migration validator
 pub fn validate_migration_compatibility(from_version: u8, to_version: u8) -> Result<()> {
     if from_version > to_version {
-        msg!("Cannot downgrade from version {} to {}", from_version, to_version);
+        msg!(
+            "Cannot downgrade from version {} to {}",
+            from_version,
+            to_version
+        );
         return Err(LendingError::InvalidMigration.into());
     }
 
@@ -253,18 +304,29 @@ pub fn batch_migrate_accounts<T: Migratable>(accounts: &mut [T]) -> Result<()> {
             match account.migrate(from_version) {
                 Ok(()) => {
                     migrated_count += 1;
-                    msg!("Successfully migrated account from version {}", from_version);
+                    msg!(
+                        "Successfully migrated account from version {}",
+                        from_version
+                    );
                 }
                 Err(e) => {
                     error_count += 1;
-                    msg!("Failed to migrate account from version {}: {:?}", from_version, e);
+                    msg!(
+                        "Failed to migrate account from version {}: {:?}",
+                        from_version,
+                        e
+                    );
                     // Continue with other accounts instead of failing entirely
                 }
             }
         }
     }
 
-    msg!("Batch migration completed: {} migrated, {} errors", migrated_count, error_count);
+    msg!(
+        "Batch migration completed: {} migrated, {} errors",
+        migrated_count,
+        error_count
+    );
 
     if error_count > 0 {
         return Err(LendingError::PartialMigrationFailure.into());

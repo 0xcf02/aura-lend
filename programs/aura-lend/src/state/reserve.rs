@@ -1,7 +1,7 @@
-use anchor_lang::prelude::*;
 use crate::constants::*;
-use crate::utils::math::*;
 use crate::error::LendingError;
+use crate::utils::math::*;
+use anchor_lang::prelude::*;
 
 /// Reserve state account for each supported asset
 /// Contains all information about a specific asset's lending pool
@@ -9,43 +9,43 @@ use crate::error::LendingError;
 pub struct Reserve {
     /// Version of the reserve account structure
     pub version: u8,
-    
+
     /// Market this reserve belongs to
     pub market: Pubkey,
-    
+
     /// Mint of the liquidity token (e.g., USDC, SOL)
     pub liquidity_mint: Pubkey,
-    
+
     /// Mint of the collateral token (aTokens, e.g., aUSDC, aSOL)
     pub collateral_mint: Pubkey,
-    
+
     /// Supply token account - holds the reserve's liquidity
     pub liquidity_supply: Pubkey,
-    
+
     /// Fee receiver token account
     pub fee_receiver: Pubkey,
-    
+
     /// Pyth price oracle account
     pub price_oracle: Pubkey,
-    
+
     /// Pyth price feed ID for this asset
     pub oracle_feed_id: [u8; 32],
-    
+
     /// Configuration parameters for this reserve
     pub config: ReserveConfig,
-    
+
     /// Current state of the reserve (amounts, rates, etc.)
     pub state: ReserveState,
-    
+
     /// Timestamp of the last state update
     pub last_update_timestamp: u64,
-    
+
     /// Slot of the last state update
     pub last_update_slot: u64,
-    
+
     /// Reentrancy guard - prevents concurrent operations
     pub reentrancy_guard: bool,
-    
+
     /// Reserved space for future upgrades
     pub reserved: [u8; 255],
 }
@@ -78,7 +78,7 @@ impl Reserve {
         config: ReserveConfig,
     ) -> Result<Self> {
         let clock = Clock::get()?;
-        
+
         Ok(Self {
             version: PROGRAM_VERSION,
             market,
@@ -104,12 +104,10 @@ impl Reserve {
         }
 
         let slots_elapsed = current_slot - self.last_update_slot;
-        
+
         // Calculate current utilization rate
-        let utilization_rate = Rate::utilization_rate(
-            self.state.total_borrows,
-            self.state.available_liquidity,
-        )?;
+        let utilization_rate =
+            Rate::utilization_rate(self.state.total_borrows, self.state.available_liquidity)?;
 
         // Calculate new borrow interest rate
         let borrow_rate = Rate::calculate_interest_rate(
@@ -128,7 +126,7 @@ impl Reserve {
                 .checked_div(BASIS_POINTS_PRECISION as u128)
                 .ok_or(LendingError::DivisionByZero)?,
         );
-        
+
         let fee_complement = Decimal::one().try_sub(protocol_fee_rate)?;
         let supply_rate = borrow_rate
             .try_mul(utilization_rate)?
@@ -151,15 +149,20 @@ impl Reserve {
                 SLOTS_PER_YEAR / 365, // Daily compounding
                 time_fraction,
             )?;
-            
-            let interest_earned = borrow_interest.try_sub(Decimal::from_integer(self.state.total_borrows)?)?;
+
+            let interest_earned =
+                borrow_interest.try_sub(Decimal::from_integer(self.state.total_borrows)?)?;
             let _interest_amount = interest_earned.try_floor_u64()?;
-            
+
             self.state.total_borrows = borrow_interest.try_floor_u64()?;
-            
+
             // Protocol fee on interest
-            let protocol_fee = interest_earned.try_mul(protocol_fee_rate)?.try_floor_u64()?;
-            self.state.accumulated_protocol_fees = self.state.accumulated_protocol_fees
+            let protocol_fee = interest_earned
+                .try_mul(protocol_fee_rate)?
+                .try_floor_u64()?;
+            self.state.accumulated_protocol_fees = self
+                .state
+                .accumulated_protocol_fees
                 .checked_add(protocol_fee)
                 .ok_or(LendingError::MathOverflow)?;
         }
@@ -172,7 +175,7 @@ impl Reserve {
                 SLOTS_PER_YEAR / 365, // Daily compounding
                 time_fraction,
             )?;
-            
+
             self.state.total_liquidity = supply_interest.try_floor_u64()?;
         }
 
@@ -196,7 +199,7 @@ impl Reserve {
 
         let total_liquidity = Decimal::from_integer(self.state.total_liquidity);
         let collateral_supply = Decimal::from_integer(self.state.collateral_mint_supply);
-        
+
         total_liquidity?.try_div(collateral_supply?)
     }
 
@@ -208,7 +211,7 @@ impl Reserve {
 
         let exchange_rate = self.collateral_exchange_rate()?;
         let liquidity_decimal = Decimal::from_integer(liquidity_amount);
-        
+
         liquidity_decimal?.try_div(exchange_rate)?.try_floor_u64()
     }
 
@@ -216,7 +219,7 @@ impl Reserve {
     pub fn collateral_to_liquidity(&self, collateral_amount: u64) -> Result<u64> {
         let exchange_rate = self.collateral_exchange_rate()?;
         let collateral_decimal = Decimal::from_integer(collateral_amount);
-        
+
         collateral_decimal?.try_mul(exchange_rate)?.try_floor_u64()
     }
 
@@ -227,14 +230,18 @@ impl Reserve {
 
     /// Add liquidity to the reserve
     pub fn add_liquidity(&mut self, amount: u64) -> Result<()> {
-        self.state.available_liquidity = self.state.available_liquidity
+        self.state.available_liquidity = self
+            .state
+            .available_liquidity
             .checked_add(amount)
             .ok_or(LendingError::MathOverflow)?;
-        
-        self.state.total_liquidity = self.state.total_liquidity
+
+        self.state.total_liquidity = self
+            .state
+            .total_liquidity
             .checked_add(amount)
             .ok_or(LendingError::MathOverflow)?;
-        
+
         Ok(())
     }
 
@@ -244,14 +251,18 @@ impl Reserve {
             return Err(LendingError::InsufficientLiquidity.into());
         }
 
-        self.state.available_liquidity = self.state.available_liquidity
+        self.state.available_liquidity = self
+            .state
+            .available_liquidity
             .checked_sub(amount)
             .ok_or(LendingError::MathUnderflow)?;
-            
-        self.state.total_liquidity = self.state.total_liquidity
+
+        self.state.total_liquidity = self
+            .state
+            .total_liquidity
             .checked_sub(amount)
             .ok_or(LendingError::MathUnderflow)?;
-            
+
         Ok(())
     }
 
@@ -261,29 +272,37 @@ impl Reserve {
             return Err(LendingError::InsufficientLiquidity.into());
         }
 
-        self.state.available_liquidity = self.state.available_liquidity
+        self.state.available_liquidity = self
+            .state
+            .available_liquidity
             .checked_sub(amount)
             .ok_or(LendingError::MathUnderflow)?;
-            
-        self.state.total_borrows = self.state.total_borrows
+
+        self.state.total_borrows = self
+            .state
+            .total_borrows
             .checked_add(amount)
             .ok_or(LendingError::MathOverflow)?;
-            
+
         Ok(())
     }
 
     /// Repay a borrow to the reserve
     pub fn repay_borrow(&mut self, amount: u64) -> Result<()> {
         let actual_repay = std::cmp::min(amount, self.state.total_borrows);
-        
-        self.state.available_liquidity = self.state.available_liquidity
+
+        self.state.available_liquidity = self
+            .state
+            .available_liquidity
             .checked_add(actual_repay)
             .ok_or(LendingError::MathOverflow)?;
-            
-        self.state.total_borrows = self.state.total_borrows
+
+        self.state.total_borrows = self
+            .state
+            .total_borrows
             .checked_sub(actual_repay)
             .ok_or(LendingError::MathUnderflow)?;
-            
+
         Ok(())
     }
 
@@ -294,8 +313,8 @@ impl Reserve {
             false => {
                 self.reentrancy_guard = true;
                 Ok(())
-            },
-            true => Err(LendingError::OperationInProgress.into())
+            }
+            true => Err(LendingError::OperationInProgress.into()),
         }
     }
 
@@ -324,34 +343,34 @@ impl Reserve {
 pub struct ReserveConfig {
     /// Loan-to-value ratio in basis points (max borrowable amount / collateral value)
     pub loan_to_value_ratio_bps: u64,
-    
+
     /// Liquidation threshold in basis points (liquidation trigger / collateral value)
     pub liquidation_threshold_bps: u64,
-    
+
     /// Liquidation penalty in basis points (bonus for liquidators)
     pub liquidation_penalty_bps: u64,
-    
+
     /// Base borrow rate in basis points (annual)
     pub base_borrow_rate_bps: u64,
-    
+
     /// Borrow rate multiplier in basis points
     pub borrow_rate_multiplier_bps: u64,
-    
+
     /// Jump rate multiplier in basis points (kicks in after optimal utilization)
     pub jump_rate_multiplier_bps: u64,
-    
+
     /// Optimal utilization rate in basis points
     pub optimal_utilization_rate_bps: u64,
-    
+
     /// Protocol fee in basis points (taken from interest)
     pub protocol_fee_bps: u64,
-    
+
     /// Maximum borrow rate in basis points
     pub max_borrow_rate_bps: u64,
-    
+
     /// Asset decimals (6 for USDC, 9 for SOL, etc.)
     pub decimals: u8,
-    
+
     /// Reserve flags
     pub flags: ReserveConfigFlags,
 }
@@ -361,25 +380,25 @@ pub struct ReserveConfig {
 pub struct ReserveState {
     /// Total liquidity available for borrowing
     pub available_liquidity: u64,
-    
+
     /// Total amount borrowed from this reserve
     pub total_borrows: u64,
-    
+
     /// Total liquidity in the reserve (available + borrowed)
     pub total_liquidity: u64,
-    
+
     /// Total supply of collateral tokens (aTokens)
     pub collateral_mint_supply: u64,
-    
+
     /// Current borrow interest rate (annual)
     pub current_borrow_rate: Decimal,
-    
+
     /// Current supply interest rate (annual)
     pub current_supply_rate: Decimal,
-    
+
     /// Current utilization rate
     pub current_utilization_rate: Decimal,
-    
+
     /// Protocol fees accumulated but not yet collected
     pub accumulated_protocol_fees: u64,
 }
@@ -393,19 +412,19 @@ pub struct ReserveConfigFlags {
 impl ReserveConfigFlags {
     /// Deposits are disabled
     pub const DEPOSITS_DISABLED: Self = Self { bits: 1 << 0 };
-    
+
     /// Withdrawals are disabled
     pub const WITHDRAWALS_DISABLED: Self = Self { bits: 1 << 1 };
-    
+
     /// Borrowing is disabled
     pub const BORROWING_DISABLED: Self = Self { bits: 1 << 2 };
-    
+
     /// Repayments are disabled
     pub const REPAYMENTS_DISABLED: Self = Self { bits: 1 << 3 };
-    
+
     /// Liquidations are disabled
     pub const LIQUIDATIONS_DISABLED: Self = Self { bits: 1 << 4 };
-    
+
     /// Reserve can be used as collateral
     pub const COLLATERAL_ENABLED: Self = Self { bits: 1 << 5 };
 

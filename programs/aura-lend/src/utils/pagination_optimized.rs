@@ -1,8 +1,8 @@
-use anchor_lang::prelude::*;
 use crate::error::LendingError;
 use crate::utils::math::Decimal;
-use std::collections::{BTreeMap, HashMap};
+use anchor_lang::prelude::*;
 use std::cmp::Ordering;
+use std::collections::{BTreeMap, HashMap};
 
 /// Optimized pagination with indexing for faster filtered queries
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
@@ -170,7 +170,7 @@ impl ObligationIndex {
         limit: usize,
     ) -> Vec<Pubkey> {
         let mut results = Vec::new();
-        
+
         let range = match (min_health_factor, max_health_factor) {
             (Some(min), Some(max)) => self.health_factor_index.range(min..=max),
             (Some(min), None) => self.health_factor_index.range(min..),
@@ -264,7 +264,7 @@ impl ReserveIndex {
         limit: usize,
     ) -> Vec<Pubkey> {
         let mut results = Vec::new();
-        
+
         let range = match (min_liquidity, max_liquidity) {
             (Some(min), Some(max)) => self.liquidity_index.range(min..=max),
             (Some(min), None) => self.liquidity_index.range(min..),
@@ -314,18 +314,21 @@ impl PaginationEngine {
         filters: &ObligationFilters,
     ) -> Result<PaginationResultOptimized<Pubkey>> {
         let mut filtered_obligations = Vec::new();
-        
+
         // Apply filters using indices for O(log n) performance
         if let Some(owner) = filters.owner {
-            if let Some(owner_obligations) = self.obligation_index.get_obligations_by_owner(&owner) {
+            if let Some(owner_obligations) = self.obligation_index.get_obligations_by_owner(&owner)
+            {
                 filtered_obligations.extend(owner_obligations.iter().cloned());
             }
         } else if let Some(max_health) = filters.max_health_factor {
-            filtered_obligations = self.obligation_index.get_obligations_by_health_factor_range(
-                None,
-                Some(max_health),
-                1000, // Reasonable limit
-            );
+            filtered_obligations = self
+                .obligation_index
+                .get_obligations_by_health_factor_range(
+                    None,
+                    Some(max_health),
+                    1000, // Reasonable limit
+                );
         } else {
             // Get all obligations (this could be optimized further with a master index)
             for obligations in self.obligation_index.health_factor_index.values() {
@@ -347,8 +350,10 @@ impl PaginationEngine {
         }
 
         // Apply pagination
-        let start_index = if params.cursor.is_some() { 0 } else { 
-            (params.page * params.page_size) as usize 
+        let start_index = if params.cursor.is_some() {
+            0
+        } else {
+            (params.page * params.page_size) as usize
         };
         let _end_index = start_index + params.page_size as usize;
 
@@ -465,19 +470,19 @@ impl PaginationEngine {
         iterations: u32,
     ) -> PaginationMetrics {
         use std::time::Instant;
-        
+
         let start = Instant::now();
-        
+
         for _ in 0..iterations {
             let _ = self.paginate_obligations_with_cursor(params, filters);
         }
-        
+
         let elapsed = start.elapsed();
-        
+
         PaginationMetrics {
             query_time_ms: elapsed.as_millis() as u64 / iterations as u64,
-            index_hits: 0, // Would track actual index usage
-            total_filtered: 0, // Would track filtering efficiency
+            index_hits: 0,         // Would track actual index usage
+            total_filtered: 0,     // Would track filtering efficiency
             cache_efficiency: 0.0, // Would calculate cache hit ratio
         }
     }
@@ -498,8 +503,8 @@ mod tests {
         index.add_obligation(
             obligation_key,
             owner,
-            12000, // 120% health factor
-            50000, // $500 borrowed
+            12000,   // 120% health factor
+            50000,   // $500 borrowed
             1000000, // timestamp
             &reserves,
         );
@@ -528,7 +533,7 @@ mod tests {
     #[test]
     fn test_cursor_pagination() {
         let engine = PaginationEngine::new();
-        
+
         let params = PaginationParamsOptimized {
             page: 0,
             page_size: 10,
@@ -536,9 +541,9 @@ mod tests {
             sort_ascending: false,
             cursor: None,
         };
-        
+
         let filters = ObligationFilters::default();
-        
+
         // This would test the pagination engine in a real scenario
         // For now, we verify it compiles and basic structure is correct
         let _ = engine.paginate_obligations_with_cursor(&params, &filters);
@@ -555,7 +560,7 @@ mod tests {
             1000000, // 1M liquidity
             8000,    // 80% utilization
             mint,
-            500,     // 5% interest rate
+            500, // 5% interest rate
         );
 
         // Test mint lookup - O(1)
@@ -564,11 +569,7 @@ mod tests {
         assert_eq!(mint_reserves.unwrap().len(), 1);
 
         // Test liquidity range query - O(log n + k)
-        let high_liquidity = index.get_reserves_by_liquidity_range(
-            Some(500000),
-            None,
-            5,
-        );
+        let high_liquidity = index.get_reserves_by_liquidity_range(Some(500000), None, 5);
         assert_eq!(high_liquidity.len(), 1);
     }
 }
