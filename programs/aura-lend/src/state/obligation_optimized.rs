@@ -1,9 +1,9 @@
-use anchor_lang::prelude::*;
-use std::collections::HashMap;
 use crate::constants::*;
-use crate::utils::math::*;
 use crate::error::LendingError;
 use crate::state::obligation::{ObligationCollateral, ObligationLiquidity};
+use crate::utils::math::*;
+use anchor_lang::prelude::*;
+use std::collections::HashMap;
 
 /// Optimized obligation structure with O(1) lookups using HashMap
 /// This provides significant performance improvements for users with multiple reserves
@@ -11,42 +11,42 @@ use crate::state::obligation::{ObligationCollateral, ObligationLiquidity};
 pub struct ObligationOptimized {
     /// Version of the obligation account structure
     pub version: u8,
-    
+
     /// Market this obligation belongs to
     pub market: Pubkey,
-    
+
     /// Owner of this obligation (borrower)
     pub owner: Pubkey,
-    
+
     /// Collateral deposits as arrays for Solana compatibility
     pub deposits: Vec<ObligationCollateral>,
     /// Index mapping reserve pubkey to deposits array position for O(1) lookup
     pub deposit_index: HashMap<Pubkey, usize>,
-    
+
     /// Borrowed liquidity as arrays for Solana compatibility
     pub borrows: Vec<ObligationLiquidity>,
     /// Index mapping reserve pubkey to borrows array position for O(1) lookup  
     pub borrow_index: HashMap<Pubkey, usize>,
-    
+
     /// Total deposited value in USD (cached for performance)
     pub deposited_value_usd: Decimal,
-    
-    /// Total borrowed value in USD (cached for performance) 
+
+    /// Total borrowed value in USD (cached for performance)
     pub borrowed_value_usd: Decimal,
-    
+
     /// Timestamp of the last obligation update
     pub last_update_timestamp: u64,
-    
+
     /// Slot of the last obligation update
     pub last_update_slot: u64,
-    
+
     /// Health factor snapshot during liquidation (prevents manipulation)
     pub liquidation_snapshot_health_factor: Option<Decimal>,
-    
+
     /// Performance metrics
     pub lookup_count: u64,
     pub cache_hits: u64,
-    
+
     /// Reserved space for future upgrades
     pub reserved: [u8; 96],
 }
@@ -55,7 +55,7 @@ impl ObligationOptimized {
     /// Create a new optimized obligation
     pub fn new(market: Pubkey, owner: Pubkey) -> Result<Self> {
         let clock = Clock::get()?;
-        
+
         Ok(Self {
             version: PROGRAM_VERSION,
             market,
@@ -83,7 +83,8 @@ impl ObligationOptimized {
 
         // O(1) lookup using HashMap
         if let Some(&index) = self.deposit_index.get(&deposit.deposit_reserve) {
-            self.deposits[index].deposited_amount = self.deposits[index].deposited_amount
+            self.deposits[index].deposited_amount = self.deposits[index]
+                .deposited_amount
                 .checked_add(deposit.deposited_amount)
                 .ok_or(LendingError::MathOverflow)?;
             self.cache_hits = self.cache_hits.saturating_add(1);
@@ -101,7 +102,9 @@ impl ObligationOptimized {
 
     /// Remove collateral deposit with O(1) lookup
     pub fn remove_collateral_deposit(&mut self, reserve: &Pubkey, amount: u64) -> Result<()> {
-        let index = *self.deposit_index.get(reserve)
+        let index = *self
+            .deposit_index
+            .get(reserve)
             .ok_or(LendingError::ObligationReserveNotFound)?;
 
         let deposit = &mut self.deposits[index];
@@ -109,7 +112,8 @@ impl ObligationOptimized {
             return Err(LendingError::InsufficientCollateral.into());
         }
 
-        deposit.deposited_amount = deposit.deposited_amount
+        deposit.deposited_amount = deposit
+            .deposited_amount
             .checked_sub(amount)
             .ok_or(LendingError::MathUnderflow)?;
 
@@ -131,7 +135,8 @@ impl ObligationOptimized {
 
         // O(1) lookup using HashMap
         if let Some(&index) = self.borrow_index.get(&borrow.borrow_reserve) {
-            self.borrows[index].borrowed_amount_wads = self.borrows[index].borrowed_amount_wads
+            self.borrows[index].borrowed_amount_wads = self.borrows[index]
+                .borrowed_amount_wads
                 .try_add(borrow.borrowed_amount_wads)?;
             self.cache_hits = self.cache_hits.saturating_add(1);
         } else {
@@ -148,7 +153,9 @@ impl ObligationOptimized {
 
     /// Remove liquidity borrow with O(1) lookup
     pub fn remove_liquidity_borrow(&mut self, reserve: &Pubkey, amount: Decimal) -> Result<()> {
-        let index = *self.borrow_index.get(reserve)
+        let index = *self
+            .borrow_index
+            .get(reserve)
             .ok_or(LendingError::ObligationReserveNotFound)?;
 
         let borrow = &mut self.borrows[index];
@@ -170,12 +177,16 @@ impl ObligationOptimized {
 
     /// Fast collateral deposit lookup - O(1)
     pub fn find_collateral_deposit(&self, reserve: &Pubkey) -> Option<&ObligationCollateral> {
-        self.deposit_index.get(reserve)
+        self.deposit_index
+            .get(reserve)
             .and_then(|&index| self.deposits.get(index))
     }
 
     /// Fast mutable collateral deposit lookup - O(1)
-    pub fn find_collateral_deposit_mut(&mut self, reserve: &Pubkey) -> Option<&mut ObligationCollateral> {
+    pub fn find_collateral_deposit_mut(
+        &mut self,
+        reserve: &Pubkey,
+    ) -> Option<&mut ObligationCollateral> {
         if let Some(&index) = self.deposit_index.get(reserve) {
             self.lookup_count = self.lookup_count.saturating_add(1);
             self.cache_hits = self.cache_hits.saturating_add(1);
@@ -188,12 +199,16 @@ impl ObligationOptimized {
 
     /// Fast liquidity borrow lookup - O(1)
     pub fn find_liquidity_borrow(&self, reserve: &Pubkey) -> Option<&ObligationLiquidity> {
-        self.borrow_index.get(reserve)
+        self.borrow_index
+            .get(reserve)
             .and_then(|&index| self.borrows.get(index))
     }
 
     /// Fast mutable liquidity borrow lookup - O(1)
-    pub fn find_liquidity_borrow_mut(&mut self, reserve: &Pubkey) -> Option<&mut ObligationLiquidity> {
+    pub fn find_liquidity_borrow_mut(
+        &mut self,
+        reserve: &Pubkey,
+    ) -> Option<&mut ObligationLiquidity> {
         if let Some(&index) = self.borrow_index.get(reserve) {
             self.lookup_count = self.lookup_count.saturating_add(1);
             self.cache_hits = self.cache_hits.saturating_add(1);
@@ -225,7 +240,11 @@ impl ObligationOptimized {
         let mut threshold_value = Decimal::zero();
 
         // Use iterator with early termination for better performance
-        for deposit in self.deposits.iter().take_while(|d| !d.market_value_usd.is_zero()) {
+        for deposit in self
+            .deposits
+            .iter()
+            .take_while(|d| !d.market_value_usd.is_zero())
+        {
             let threshold_decimal = Decimal::from_scaled_val(
                 (deposit.liquidation_threshold_bps as u128)
                     .checked_mul(PRECISION as u128)
@@ -233,7 +252,7 @@ impl ObligationOptimized {
                     .checked_div(BASIS_POINTS_PRECISION as u128)
                     .ok_or(LendingError::DivisionByZero)?,
             );
-            
+
             let weighted_value = deposit.market_value_usd.try_mul(threshold_decimal)?;
             threshold_value = threshold_value.try_add(weighted_value)?;
         }
@@ -245,7 +264,8 @@ impl ObligationOptimized {
     pub fn batch_update_deposits(&mut self, updates: &[(Pubkey, u64)]) -> Result<()> {
         for (reserve, amount) in updates {
             if let Some(deposit) = self.find_collateral_deposit_mut(reserve) {
-                deposit.deposited_amount = deposit.deposited_amount
+                deposit.deposited_amount = deposit
+                    .deposited_amount
                     .checked_add(*amount)
                     .ok_or(LendingError::MathOverflow)?;
             }
@@ -320,13 +340,14 @@ impl ObligationOptimized {
     /// Memory layout optimization - keep hot data together
     pub fn compact_memory_layout(&mut self) {
         // Sort deposits by frequency of access (most accessed first)
-        self.deposits.sort_by(|a, b| {
-            b.deposited_amount.cmp(&a.deposited_amount)
-        });
-        
-        // Sort borrows by frequency of access  
+        self.deposits
+            .sort_by(|a, b| b.deposited_amount.cmp(&a.deposited_amount));
+
+        // Sort borrows by frequency of access
         self.borrows.sort_by(|a, b| {
-            b.borrowed_amount_wads.value.cmp(&a.borrowed_amount_wads.value)
+            b.borrowed_amount_wads
+                .value
+                .cmp(&a.borrowed_amount_wads.value)
         });
 
         // Rebuild indices after sorting
@@ -341,8 +362,9 @@ mod tests {
 
     #[test]
     fn test_optimized_lookups() {
-        let mut obligation = ObligationOptimized::new(Pubkey::default(), Pubkey::default()).unwrap();
-        
+        let mut obligation =
+            ObligationOptimized::new(Pubkey::default(), Pubkey::default()).unwrap();
+
         let deposit = ObligationCollateral {
             deposit_reserve: Pubkey::new_unique(),
             deposited_amount: 1000,
@@ -367,8 +389,9 @@ mod tests {
 
     #[test]
     fn test_batch_operations() {
-        let mut obligation = ObligationOptimized::new(Pubkey::default(), Pubkey::default()).unwrap();
-        
+        let mut obligation =
+            ObligationOptimized::new(Pubkey::default(), Pubkey::default()).unwrap();
+
         // Setup test data
         let reserves = [Pubkey::new_unique(), Pubkey::new_unique()];
         for &reserve in &reserves {
@@ -385,7 +408,19 @@ mod tests {
         let updates = [(reserves[0], 100), (reserves[1], 200)];
         obligation.batch_update_deposits(&updates).unwrap();
 
-        assert_eq!(obligation.find_collateral_deposit(&reserves[0]).unwrap().deposited_amount, 600);
-        assert_eq!(obligation.find_collateral_deposit(&reserves[1]).unwrap().deposited_amount, 700);
+        assert_eq!(
+            obligation
+                .find_collateral_deposit(&reserves[0])
+                .unwrap()
+                .deposited_amount,
+            600
+        );
+        assert_eq!(
+            obligation
+                .find_collateral_deposit(&reserves[1])
+                .unwrap()
+                .deposited_amount,
+            700
+        );
     }
 }

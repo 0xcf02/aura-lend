@@ -1,30 +1,30 @@
+pub mod config;
+pub mod iterator_optimized;
+pub mod logging;
 pub mod math;
 pub mod math_optimized;
+pub mod memory_optimized;
+pub mod metrics;
 pub mod oracle;
 pub mod pagination;
 pub mod pagination_optimized;
-pub mod iterator_optimized;
-pub mod memory_optimized;
-pub mod logging;
-pub mod metrics;
-pub mod config;
-pub mod token;
 pub mod rbac;
+pub mod token;
 
 use anchor_lang::prelude::*;
 
+pub use config::*;
+pub use iterator_optimized::*;
+pub use logging::*;
 pub use math::*;
 pub use math_optimized::*;
+pub use memory_optimized::*;
+pub use metrics::*;
 pub use oracle::*;
 pub use pagination::*;
 pub use pagination_optimized::*;
-pub use iterator_optimized::*;
-pub use memory_optimized::*;
-pub use logging::*;
-pub use metrics::*;
-pub use config::*;
-pub use token::*;
 pub use rbac::*;
+pub use token::*;
 
 /// Validates that the provided account is a signer
 pub fn validate_signer(account_info: &AccountInfo) -> Result<()> {
@@ -35,10 +35,7 @@ pub fn validate_signer(account_info: &AccountInfo) -> Result<()> {
 }
 
 /// Validates that the provided account has the correct authority
-pub fn validate_authority(
-    account_info: &AccountInfo,
-    expected_authority: &Pubkey,
-) -> Result<()> {
+pub fn validate_authority(account_info: &AccountInfo, expected_authority: &Pubkey) -> Result<()> {
     if account_info.key() != expected_authority {
         return Err(error!(crate::error::LendingError::InvalidAuthority));
     }

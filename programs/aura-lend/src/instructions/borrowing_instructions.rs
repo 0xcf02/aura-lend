@@ -1,9 +1,9 @@
+use crate::constants::*;
+use crate::error::LendingError;
+use crate::state::*;
+use crate::utils::{math::Decimal, OracleManager, TokenUtils};
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Token, TokenAccount};
-use crate::state::*;
-use crate::error::LendingError;
-use crate::constants::*;
-use crate::utils::{TokenUtils, OracleManager, math::Decimal};
 
 /// Initialize a new user obligation account
 pub fn init_obligation(ctx: Context<InitObligation>) -> Result<()> {
@@ -13,7 +13,10 @@ pub fn init_obligation(ctx: Context<InitObligation>) -> Result<()> {
     // Initialize the obligation
     **obligation = Obligation::new(market.key(), ctx.accounts.obligation_owner.key())?;
 
-    msg!("Obligation initialized for user: {}", ctx.accounts.obligation_owner.key());
+    msg!(
+        "Obligation initialized for user: {}",
+        ctx.accounts.obligation_owner.key()
+    );
     Ok(())
 }
 
@@ -33,7 +36,11 @@ pub fn deposit_obligation_collateral(
     }
 
     // Check if reserve allows collateral deposits
-    if !deposit_reserve.config.flags.contains(ReserveConfigFlags::COLLATERAL_ENABLED) {
+    if !deposit_reserve
+        .config
+        .flags
+        .contains(ReserveConfigFlags::COLLATERAL_ENABLED)
+    {
         return Err(LendingError::FeatureDisabled.into());
     }
 
@@ -60,25 +67,28 @@ pub fn deposit_obligation_collateral(
     )?;
 
     // Validate collateral deposit won't exceed concentration limits
-    let current_collateral_for_asset = obligation.deposits.iter()
+    let current_collateral_for_asset = obligation
+        .deposits
+        .iter()
         .filter(|d| d.deposit_reserve == deposit_reserve.key())
         .map(|d| d.market_value_usd.value)
         .sum::<u128>();
-    
+
     let new_total_collateral_for_asset = current_collateral_for_asset
         .checked_add(collateral_value_usd.value)
         .ok_or(LendingError::MathOverflow)?;
-    
+
     // Prevent over-concentration in single asset (max 70% of portfolio in one asset)
-    let total_portfolio_value = obligation.deposited_value_usd
+    let total_portfolio_value = obligation
+        .deposited_value_usd
         .try_add(collateral_value_usd)?;
-    
-    let max_single_asset_value = total_portfolio_value
-        .try_mul(Decimal::from_scaled_val(
-            (7000u128 * PRECISION as u128).checked_div(BASIS_POINTS_PRECISION as u128)
-                .ok_or(LendingError::DivisionByZero)?
-        ))?;
-    
+
+    let max_single_asset_value = total_portfolio_value.try_mul(Decimal::from_scaled_val(
+        (7000u128 * PRECISION as u128)
+            .checked_div(BASIS_POINTS_PRECISION as u128)
+            .ok_or(LendingError::DivisionByZero)?,
+    ))?;
+
     if new_total_collateral_for_asset > max_single_asset_value.value {
         return Err(LendingError::InvalidAmount.into()); // Too concentrated
     }
@@ -105,9 +115,10 @@ pub fn deposit_obligation_collateral(
     obligation.add_collateral_deposit(collateral_deposit)?;
 
     // Update cached values
-    obligation.deposited_value_usd = obligation.deposited_value_usd
+    obligation.deposited_value_usd = obligation
+        .deposited_value_usd
         .try_add(collateral_value_usd)?;
-    
+
     obligation.update_timestamp(clock.slot);
 
     msg!(
@@ -143,9 +154,10 @@ pub fn withdraw_obligation_collateral(
     withdraw_reserve.update_interest(clock.slot)?;
 
     // Check if user has enough collateral
-    let deposit = obligation.find_collateral_deposit(&withdraw_reserve.key())
+    let deposit = obligation
+        .find_collateral_deposit(&withdraw_reserve.key())
         .ok_or(LendingError::ObligationReserveNotFound)?;
-    
+
     if deposit.deposited_amount < collateral_amount {
         return Err(LendingError::InsufficientCollateral.into());
     }
@@ -168,7 +180,8 @@ pub fn withdraw_obligation_collateral(
     obligation.remove_collateral_deposit(&withdraw_reserve.key(), collateral_amount)?;
 
     // Update cached values
-    obligation.deposited_value_usd = obligation.deposited_value_usd
+    obligation.deposited_value_usd = obligation
+        .deposited_value_usd
         .try_sub(withdrawn_value_usd)?;
 
     // Check if obligation remains healthy after withdrawal
@@ -220,7 +233,11 @@ pub fn borrow_obligation_liquidity(
     }
 
     // Check if reserve allows borrowing
-    if borrow_reserve.config.flags.contains(ReserveConfigFlags::BORROWING_DISABLED) {
+    if borrow_reserve
+        .config
+        .flags
+        .contains(ReserveConfigFlags::BORROWING_DISABLED)
+    {
         return Err(LendingError::FeatureDisabled.into());
     }
 
@@ -259,35 +276,37 @@ pub fn borrow_obligation_liquidity(
     // Atomic LTV validation with fresh oracle prices to prevent manipulation
     // Lock obligation during validation to prevent race conditions
     let _current_health_factor = obligation.calculate_health_factor()?;
-    
+
     // Simulate the new borrow to check if it would make the position unhealthy
     let new_borrowed_value = obligation.borrowed_value_usd.try_add(borrow_value_usd)?;
     let max_borrow_value = obligation.calculate_max_borrow_value()?;
 
     // Strict LTV check with buffer to prevent near-liquidation positions
     let ltv_buffer_bps = 500; // 5% buffer below maximum LTV
-    let safe_max_borrow = max_borrow_value
-        .try_mul(Decimal::from_scaled_val(
-            ((BASIS_POINTS_PRECISION - ltv_buffer_bps) as u128)
-                .checked_mul(PRECISION as u128)
-                .ok_or(LendingError::MathOverflow)?
-                .checked_div(BASIS_POINTS_PRECISION as u128)
-                .ok_or(LendingError::DivisionByZero)?
-        ))?;
+    let safe_max_borrow = max_borrow_value.try_mul(Decimal::from_scaled_val(
+        ((BASIS_POINTS_PRECISION - ltv_buffer_bps) as u128)
+            .checked_mul(PRECISION as u128)
+            .ok_or(LendingError::MathOverflow)?
+            .checked_div(BASIS_POINTS_PRECISION as u128)
+            .ok_or(LendingError::DivisionByZero)?,
+    ))?;
 
     if new_borrowed_value.value > safe_max_borrow.value {
         return Err(LendingError::LoanToValueRatioExceedsMax.into());
     }
 
     // Additional health factor check after simulated borrow
-    let simulated_health_factor = obligation.calculate_liquidation_threshold_value()?
+    let simulated_health_factor = obligation
+        .calculate_liquidation_threshold_value()?
         .try_div(new_borrowed_value)?;
-    
+
     // Ensure health factor stays well above 1.0 (require at least 1.1)
     let min_health_factor = Decimal::from_scaled_val(
-        (11u128).checked_mul(PRECISION as u128 / 10).ok_or(LendingError::MathOverflow)?
+        (11u128)
+            .checked_mul(PRECISION as u128 / 10)
+            .ok_or(LendingError::MathOverflow)?,
     );
-    
+
     if simulated_health_factor.value < min_health_factor.value {
         return Err(LendingError::ObligationUnhealthy.into());
     }
@@ -350,7 +369,11 @@ pub fn repay_obligation_liquidity(
     }
 
     // Check if reserve allows repayments
-    if repay_reserve.config.flags.contains(ReserveConfigFlags::REPAYMENTS_DISABLED) {
+    if repay_reserve
+        .config
+        .flags
+        .contains(ReserveConfigFlags::REPAYMENTS_DISABLED)
+    {
         return Err(LendingError::FeatureDisabled.into());
     }
 
@@ -363,7 +386,8 @@ pub fn repay_obligation_liquidity(
     repay_reserve.update_interest(clock.slot)?;
 
     // Check if user has this borrow
-    let borrow = obligation.find_liquidity_borrow(&repay_reserve.key())
+    let borrow = obligation
+        .find_liquidity_borrow(&repay_reserve.key())
         .ok_or(LendingError::ObligationReserveNotFound)?;
 
     let borrowed_amount = borrow.borrowed_amount_wads.try_floor_u64()?;
@@ -407,9 +431,8 @@ pub fn repay_obligation_liquidity(
     )?;
 
     // Update cached values
-    obligation.borrowed_value_usd = obligation.borrowed_value_usd
-        .try_sub(repay_value_usd)?;
-    
+    obligation.borrowed_value_usd = obligation.borrowed_value_usd.try_sub(repay_value_usd)?;
+
     obligation.update_timestamp(clock.slot);
 
     msg!(

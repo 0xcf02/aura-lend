@@ -1,8 +1,8 @@
+use crate::constants::*;
+use crate::error::LendingError;
+use crate::utils::math::Decimal;
 use anchor_lang::prelude::*;
 use pyth_solana_receiver_sdk::price_update::{PriceUpdateV2, VerificationLevel};
-use crate::error::LendingError;
-use crate::constants::*;
-use crate::utils::math::Decimal;
 
 /// Oracle price information
 #[derive(Clone, Copy, Debug)]
@@ -18,7 +18,7 @@ impl OraclePrice {
     pub fn to_decimal(&self) -> Result<Decimal> {
         let price_abs = (self.price.abs() as u128);
         let confidence = self.confidence as u128;
-        
+
         // Check confidence interval - price should be within reasonable bounds
         // Only check confidence if price is non-zero
         if price_abs > 0 {
@@ -27,7 +27,7 @@ impl OraclePrice {
                 .ok_or(LendingError::MathOverflow)?
                 .checked_div(price_abs)
                 .ok_or(LendingError::DivisionByZero)?;
-                
+
             // Reject price if confidence interval is too wide (>3% for tighter control)
             if confidence_ratio > (PRECISION / 33) as u128 {
                 return Err(LendingError::OracleConfidenceTooWide.into());
@@ -146,8 +146,8 @@ impl OracleManager {
         price_update_account: &AccountInfo,
         feed_id: &[u8; 32],
     ) -> Result<OraclePrice> {
-        use pyth_solana_receiver_sdk::price_update::{PriceUpdateV2, get_feed_id_from_hex};
-        
+        use pyth_solana_receiver_sdk::price_update::{get_feed_id_from_hex, PriceUpdateV2};
+
         // Validate account ownership
         if price_update_account.owner != &pyth_solana_receiver_sdk::ID {
             return Err(LendingError::OracleAccountMismatch.into());
@@ -172,7 +172,7 @@ impl OracleManager {
 
         // Extract the current price
         let price_data = &price_feed.price;
-        
+
         // Validate price is not negative (lending protocols typically don't handle negative prices)
         if price_data.price < 0 {
             return Err(LendingError::OraclePriceInvalid.into());
@@ -292,9 +292,15 @@ impl OracleManager {
 
             if weight > 0 {
                 total_weighted_price = total_weighted_price
-                    .checked_add((price.price.abs() as u128).checked_mul(weight as u128).ok_or(LendingError::MathOverflow)?)
+                    .checked_add(
+                        (price.price.abs() as u128)
+                            .checked_mul(weight as u128)
+                            .ok_or(LendingError::MathOverflow)?,
+                    )
                     .ok_or(LendingError::MathOverflow)?;
-                total_weight = total_weight.checked_add(weight).ok_or(LendingError::MathOverflow)?;
+                total_weight = total_weight
+                    .checked_add(weight)
+                    .ok_or(LendingError::MathOverflow)?;
             }
         }
 
@@ -307,7 +313,8 @@ impl OracleManager {
             .ok_or(LendingError::DivisionByZero)? as i64;
 
         // Use the most recent price's metadata with TWAP price
-        let latest_price = valid_prices.last()
+        let latest_price = valid_prices
+            .last()
             .ok_or(LendingError::OraclePriceInvalid)?;
         Ok(OraclePrice {
             price: twap_price,

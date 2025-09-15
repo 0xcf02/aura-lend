@@ -1,5 +1,5 @@
-use anchor_lang::prelude::*;
 use crate::error::LendingError;
+use anchor_lang::prelude::*;
 
 /// Pagination parameters for querying large datasets
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
@@ -21,7 +21,7 @@ impl PaginationParams {
         if page_size == 0 {
             return Err(LendingError::InvalidAmount.into());
         }
-        
+
         if page_size > Self::MAX_PAGE_SIZE {
             return Err(LendingError::AmountTooLarge.into());
         }
@@ -99,7 +99,7 @@ impl PaginationResult {
 pub trait Paginate<T> {
     /// Apply pagination to a vector
     fn paginate(&self, params: &PaginationParams) -> Vec<&T>;
-    
+
     /// Get pagination result metadata
     fn pagination_result(&self, params: &PaginationParams) -> PaginationResult;
 }
@@ -108,14 +108,14 @@ impl<T> Paginate<T> for Vec<T> {
     fn paginate(&self, params: &PaginationParams) -> Vec<&T> {
         let start = params.start_index() as usize;
         let end = std::cmp::min(params.end_index() as usize, self.len());
-        
+
         if start >= self.len() {
             return vec![];
         }
-        
+
         self[start..end].iter().collect()
     }
-    
+
     fn pagination_result(&self, params: &PaginationParams) -> PaginationResult {
         PaginationResult::new(params, self.len() as u32)
     }
@@ -200,7 +200,7 @@ mod tests {
     fn test_vector_pagination() {
         let data: Vec<u32> = (0..100).collect();
         let params = PaginationParams::new(2, 20).unwrap();
-        
+
         let page_data = data.paginate(&params);
         assert_eq!(page_data.len(), 20);
         assert_eq!(*page_data[0], 40);

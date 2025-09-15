@@ -1,5 +1,5 @@
-use anchor_lang::prelude::*;
 use crate::utils::get_validated_timestamp;
+use anchor_lang::prelude::*;
 
 /// Log levels for structured logging
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, PartialEq)]
@@ -18,30 +18,30 @@ pub enum EventType {
     MarketInitialized,
     MarketPaused,
     MarketUnpaused,
-    
+
     // Reserve events
     ReserveInitialized,
     ReserveConfigUpdated,
     LiquidityDeposited,
     LiquidityWithdrawn,
     InterestAccrued,
-    
+
     // Obligation events
     ObligationInitialized,
     CollateralDeposited,
     CollateralWithdrawn,
     LiquidityBorrowed,
     LiquidityRepaid,
-    
+
     // Liquidation events
     LiquidationExecuted,
     FlashLoanExecuted,
-    
+
     // Oracle events
     PriceUpdated,
     OracleStale,
     PriceManipulationDetected,
-    
+
     // Governance events
     ProposalCreated,
     ProposalSigned,
@@ -50,13 +50,13 @@ pub enum EventType {
     RoleGranted,
     RoleRevoked,
     EmergencyActionTaken,
-    
+
     // Security events
     ReentrancyDetected,
     UnauthorizedAccess,
     MathOverflow,
     InvalidOperation,
-    
+
     // System events
     ProgramUpgraded,
     AccountMigrated,
@@ -96,7 +96,7 @@ impl Logger {
         additional_data: Option<String>,
     ) -> Result<()> {
         let (timestamp, slot) = get_validated_timestamp()?;
-        
+
         let entry = LogEntry {
             timestamp,
             slot,
@@ -114,24 +114,54 @@ impl Logger {
         // Emit structured log
         match level {
             LogLevel::Debug => {
-                msg!("[DEBUG] {} | {:?} | {} | slot: {} | timestamp: {}", 
-                     Self::format_event_type(&event_type), event_type, message, slot, timestamp);
+                msg!(
+                    "[DEBUG] {} | {:?} | {} | slot: {} | timestamp: {}",
+                    Self::format_event_type(&event_type),
+                    event_type,
+                    message,
+                    slot,
+                    timestamp
+                );
             }
             LogLevel::Info => {
-                msg!("[INFO] {} | {:?} | {} | slot: {} | timestamp: {}", 
-                     Self::format_event_type(&event_type), event_type, message, slot, timestamp);
+                msg!(
+                    "[INFO] {} | {:?} | {} | slot: {} | timestamp: {}",
+                    Self::format_event_type(&event_type),
+                    event_type,
+                    message,
+                    slot,
+                    timestamp
+                );
             }
             LogLevel::Warning => {
-                msg!("[WARNING] {} | {:?} | {} | slot: {} | timestamp: {}", 
-                     Self::format_event_type(&event_type), event_type, message, slot, timestamp);
+                msg!(
+                    "[WARNING] {} | {:?} | {} | slot: {} | timestamp: {}",
+                    Self::format_event_type(&event_type),
+                    event_type,
+                    message,
+                    slot,
+                    timestamp
+                );
             }
             LogLevel::Error => {
-                msg!("[ERROR] {} | {:?} | {} | slot: {} | timestamp: {}", 
-                     Self::format_event_type(&event_type), event_type, message, slot, timestamp);
+                msg!(
+                    "[ERROR] {} | {:?} | {} | slot: {} | timestamp: {}",
+                    Self::format_event_type(&event_type),
+                    event_type,
+                    message,
+                    slot,
+                    timestamp
+                );
             }
             LogLevel::Critical => {
-                msg!("[CRITICAL] {} | {:?} | {} | slot: {} | timestamp: {}", 
-                     Self::format_event_type(&event_type), event_type, message, slot, timestamp);
+                msg!(
+                    "[CRITICAL] {} | {:?} | {} | slot: {} | timestamp: {}",
+                    Self::format_event_type(&event_type),
+                    event_type,
+                    message,
+                    slot,
+                    timestamp
+                );
             }
         }
 
@@ -198,22 +228,62 @@ impl Logger {
 
     /// Log info level event
     pub fn info(event_type: EventType, message: &str) -> Result<()> {
-        Self::log(LogLevel::Info, event_type, message, None, None, None, None, None, None)
+        Self::log(
+            LogLevel::Info,
+            event_type,
+            message,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
     }
 
     /// Log warning level event
     pub fn warning(event_type: EventType, message: &str) -> Result<()> {
-        Self::log(LogLevel::Warning, event_type, message, None, None, None, None, None, None)
+        Self::log(
+            LogLevel::Warning,
+            event_type,
+            message,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
     }
 
     /// Log error level event
     pub fn error(event_type: EventType, message: &str) -> Result<()> {
-        Self::log(LogLevel::Error, event_type, message, None, None, None, None, None, None)
+        Self::log(
+            LogLevel::Error,
+            event_type,
+            message,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
     }
 
     /// Log critical level event
     pub fn critical(event_type: EventType, message: &str) -> Result<()> {
-        Self::log(LogLevel::Critical, event_type, message, None, None, None, None, None, None)
+        Self::log(
+            LogLevel::Critical,
+            event_type,
+            message,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
     }
 
     /// Log market event with context
@@ -224,7 +294,17 @@ impl Logger {
         market: Pubkey,
         user: Option<Pubkey>,
     ) -> Result<()> {
-        Self::log(level, event_type, message, user, Some(market), None, None, None, None)
+        Self::log(
+            level,
+            event_type,
+            message,
+            user,
+            Some(market),
+            None,
+            None,
+            None,
+            None,
+        )
     }
 
     /// Log reserve event with context
@@ -237,7 +317,17 @@ impl Logger {
         user: Option<Pubkey>,
         amount: Option<u64>,
     ) -> Result<()> {
-        Self::log(level, event_type, message, user, Some(market), Some(reserve), None, amount, None)
+        Self::log(
+            level,
+            event_type,
+            message,
+            user,
+            Some(market),
+            Some(reserve),
+            None,
+            amount,
+            None,
+        )
     }
 
     /// Log obligation event with context
@@ -250,7 +340,17 @@ impl Logger {
         user: Option<Pubkey>,
         amount: Option<u64>,
     ) -> Result<()> {
-        Self::log(level, event_type, message, user, Some(market), None, Some(obligation), amount, None)
+        Self::log(
+            level,
+            event_type,
+            message,
+            user,
+            Some(market),
+            None,
+            Some(obligation),
+            amount,
+            None,
+        )
     }
 
     /// Log liquidation event with full context
@@ -268,7 +368,7 @@ impl Logger {
             "repay_reserve: {}, collateral_reserve: {}, repay_amount: {}, collateral_amount: {}",
             reserve_repay, reserve_collateral, repay_amount, collateral_amount
         );
-        
+
         Self::log(
             LogLevel::Info,
             EventType::LiquidationExecuted,
@@ -314,18 +414,24 @@ impl PerformanceMonitor {
         end_slot: u64,
     ) -> Result<()> {
         let duration = end_slot.saturating_sub(start_slot);
-        
+
         if duration > 5 {
             Logger::warning(
                 EventType::InvalidOperation,
-                &format!("Slow instruction: {} took {} slots", instruction_name, duration),
+                &format!(
+                    "Slow instruction: {} took {} slots",
+                    instruction_name, duration
+                ),
             )?;
         }
-        
+
         Logger::log(
             LogLevel::Debug,
             EventType::ConfigurationChanged,
-            &format!("Instruction {} executed in {} slots", instruction_name, duration),
+            &format!(
+                "Instruction {} executed in {} slots",
+                instruction_name, duration
+            ),
             None,
             None,
             None,
@@ -337,13 +443,14 @@ impl PerformanceMonitor {
 
     /// Log memory usage
     pub fn log_account_size(account_name: &str, size: usize) -> Result<()> {
-        if size > 10240 { // Warn if account > 10KB
+        if size > 10240 {
+            // Warn if account > 10KB
             Logger::warning(
                 EventType::ConfigurationChanged,
                 &format!("Large account: {} is {} bytes", account_name, size),
             )?;
         }
-        
+
         Ok(())
     }
 }

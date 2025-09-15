@@ -1,41 +1,41 @@
-use anchor_lang::prelude::*;
 use crate::constants::*;
-use crate::utils::math::*;
 use crate::error::LendingError;
+use crate::utils::math::*;
+use anchor_lang::prelude::*;
 
 /// User obligation account - tracks collateral deposits and borrows
 #[account]
 pub struct Obligation {
     /// Version of the obligation account structure
     pub version: u8,
-    
+
     /// Market this obligation belongs to
     pub market: Pubkey,
-    
+
     /// Owner of this obligation (borrower)
     pub owner: Pubkey,
-    
+
     /// Collateral deposits in various reserves
     pub deposits: Vec<ObligationCollateral>,
-    
+
     /// Borrowed liquidity from various reserves  
     pub borrows: Vec<ObligationLiquidity>,
-    
+
     /// Total deposited value in USD (cached)
     pub deposited_value_usd: Decimal,
-    
-    /// Total borrowed value in USD (cached) 
+
+    /// Total borrowed value in USD (cached)
     pub borrowed_value_usd: Decimal,
-    
+
     /// Timestamp of the last obligation update
     pub last_update_timestamp: u64,
-    
+
     /// Slot of the last obligation update
     pub last_update_slot: u64,
-    
+
     /// Health factor snapshot during liquidation (prevents manipulation)
     pub liquidation_snapshot_health_factor: Option<Decimal>,
-    
+
     /// Reserved space for future upgrades
     pub reserved: [u8; 112],
 }
@@ -57,7 +57,7 @@ impl Obligation {
     /// Create a new obligation for the given owner
     pub fn new(market: Pubkey, owner: Pubkey) -> Result<Self> {
         let clock = Clock::get()?;
-        
+
         Ok(Self {
             version: PROGRAM_VERSION,
             market,
@@ -81,7 +81,8 @@ impl Obligation {
 
         // Check if deposit for this reserve already exists
         if let Some(existing_deposit) = self.find_collateral_deposit_mut(&deposit.deposit_reserve) {
-            existing_deposit.deposited_amount = existing_deposit.deposited_amount
+            existing_deposit.deposited_amount = existing_deposit
+                .deposited_amount
                 .checked_add(deposit.deposited_amount)
                 .ok_or(LendingError::MathOverflow)?;
         } else {
@@ -93,14 +94,16 @@ impl Obligation {
 
     /// Remove collateral deposit from the obligation
     pub fn remove_collateral_deposit(&mut self, reserve: &Pubkey, amount: u64) -> Result<()> {
-        let deposit = self.find_collateral_deposit_mut(reserve)
+        let deposit = self
+            .find_collateral_deposit_mut(reserve)
             .ok_or(LendingError::ObligationReserveNotFound)?;
 
         if deposit.deposited_amount < amount {
             return Err(LendingError::InsufficientCollateral.into());
         }
 
-        deposit.deposited_amount = deposit.deposited_amount
+        deposit.deposited_amount = deposit
+            .deposited_amount
             .checked_sub(amount)
             .ok_or(LendingError::MathUnderflow)?;
 
@@ -120,7 +123,8 @@ impl Obligation {
 
         // Check if borrow for this reserve already exists
         if let Some(existing_borrow) = self.find_liquidity_borrow_mut(&borrow.borrow_reserve) {
-            existing_borrow.borrowed_amount_wads = existing_borrow.borrowed_amount_wads
+            existing_borrow.borrowed_amount_wads = existing_borrow
+                .borrowed_amount_wads
                 .try_add(borrow.borrowed_amount_wads)?;
         } else {
             self.borrows.push(borrow);
@@ -131,7 +135,8 @@ impl Obligation {
 
     /// Repay liquidity borrow from the obligation
     pub fn repay_liquidity_borrow(&mut self, reserve: &Pubkey, amount: Decimal) -> Result<()> {
-        let borrow = self.find_liquidity_borrow_mut(reserve)
+        let borrow = self
+            .find_liquidity_borrow_mut(reserve)
             .ok_or(LendingError::ObligationReserveNotFound)?;
 
         if borrow.borrowed_amount_wads.value < amount.value {
@@ -154,8 +159,13 @@ impl Obligation {
     }
 
     /// Find mutable collateral deposit by reserve
-    pub fn find_collateral_deposit_mut(&mut self, reserve: &Pubkey) -> Option<&mut ObligationCollateral> {
-        self.deposits.iter_mut().find(|d| d.deposit_reserve == *reserve)
+    pub fn find_collateral_deposit_mut(
+        &mut self,
+        reserve: &Pubkey,
+    ) -> Option<&mut ObligationCollateral> {
+        self.deposits
+            .iter_mut()
+            .find(|d| d.deposit_reserve == *reserve)
     }
 
     /// Find liquidity borrow by reserve
@@ -164,8 +174,13 @@ impl Obligation {
     }
 
     /// Find mutable liquidity borrow by reserve
-    pub fn find_liquidity_borrow_mut(&mut self, reserve: &Pubkey) -> Option<&mut ObligationLiquidity> {
-        self.borrows.iter_mut().find(|b| b.borrow_reserve == *reserve)
+    pub fn find_liquidity_borrow_mut(
+        &mut self,
+        reserve: &Pubkey,
+    ) -> Option<&mut ObligationLiquidity> {
+        self.borrows
+            .iter_mut()
+            .find(|b| b.borrow_reserve == *reserve)
     }
 
     /// Calculate health factor of the obligation
@@ -194,7 +209,7 @@ impl Obligation {
                     .checked_div(BASIS_POINTS_PRECISION as u128)
                     .ok_or(LendingError::DivisionByZero)?,
             );
-            
+
             let borrow_value = collateral_value.try_mul(ltv_decimal)?;
             max_borrow_value = max_borrow_value.try_add(borrow_value)?;
         }
@@ -215,7 +230,7 @@ impl Obligation {
                     .checked_div(BASIS_POINTS_PRECISION as u128)
                     .ok_or(LendingError::DivisionByZero)?,
             );
-            
+
             let weighted_value = collateral_value.try_mul(threshold_decimal)?;
             threshold_value = threshold_value.try_add(weighted_value)?;
         }
@@ -254,11 +269,13 @@ impl Obligation {
 
     /// Calculate maximum liquidation amount for a given reserve
     pub fn max_liquidation_amount(&self, repay_reserve: &Pubkey) -> Result<u64> {
-        let borrow = self.find_liquidity_borrow(repay_reserve)
+        let borrow = self
+            .find_liquidity_borrow(repay_reserve)
             .ok_or(LendingError::ObligationReserveNotFound)?;
 
         // Maximum 50% of the debt can be liquidated at once
-        let max_liquidation = borrow.borrowed_amount_wads
+        let max_liquidation = borrow
+            .borrowed_amount_wads
             .try_div(Decimal::from_integer(2)?)?
             .try_floor_u64()?;
 
@@ -266,7 +283,11 @@ impl Obligation {
     }
 
     /// Refresh health factor with current oracle prices to prevent race conditions
-    pub fn refresh_health_factor(&mut self, _price_oracles: &[AccountInfo], current_timestamp: i64) -> Result<()> {
+    pub fn refresh_health_factor(
+        &mut self,
+        _price_oracles: &[AccountInfo],
+        current_timestamp: i64,
+    ) -> Result<()> {
         // Refresh all collateral values with current prices
         for _deposit in &mut self.deposits {
             // Get current price from oracle (implementation would be specific to oracle type)
@@ -282,7 +303,7 @@ impl Obligation {
 
         // Clear any stale liquidation snapshot
         self.liquidation_snapshot_health_factor = None;
-        
+
         // Update timestamp to mark as refreshed
         self.last_update_timestamp = current_timestamp as u64;
 
@@ -304,16 +325,16 @@ impl Obligation {
 pub struct ObligationCollateral {
     /// Reserve where the collateral is deposited
     pub deposit_reserve: Pubkey,
-    
+
     /// Amount of collateral tokens deposited
     pub deposited_amount: u64,
-    
+
     /// Current market value in USD
     pub market_value_usd: Decimal,
-    
+
     /// Loan-to-value ratio for this collateral type (basis points)
     pub ltv_bps: u64,
-    
+
     /// Liquidation threshold for this collateral type (basis points)
     pub liquidation_threshold_bps: u64,
 }
@@ -323,10 +344,10 @@ pub struct ObligationCollateral {
 pub struct ObligationLiquidity {
     /// Reserve where the liquidity was borrowed
     pub borrow_reserve: Pubkey,
-    
+
     /// Amount borrowed including accrued interest (high precision)
     pub borrowed_amount_wads: Decimal,
-    
+
     /// Current market value in USD
     pub market_value_usd: Decimal,
 }

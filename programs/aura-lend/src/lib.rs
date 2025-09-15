@@ -9,11 +9,11 @@ pub mod state;
 pub mod utils;
 
 use instructions::*;
+use state::governance::{GrantRoleParams, InitializeGovernanceParams};
 use state::market::InitializeMarketParams;
-use state::multisig::{InitializeMultisigParams, CreateProposalParams};
-use state::timelock::CreateTimelockProposalParams;
-use state::governance::{InitializeGovernanceParams, GrantRoleParams};
+use state::multisig::{CreateProposalParams, InitializeMultisigParams};
 use state::reserve::{InitializeReserveParams, UpdateReserveConfigParams};
+use state::timelock::CreateTimelockProposalParams;
 use state::timelock::TimelockDelay;
 
 declare_id!("AuRa1Lend1111111111111111111111111111111111");
@@ -45,21 +45,15 @@ pub mod aura_lend {
         instructions::create_multisig_proposal(ctx, params)
     }
 
-    pub fn sign_multisig_proposal(
-        ctx: Context<SignMultisigProposal>,
-    ) -> Result<()> {
+    pub fn sign_multisig_proposal(ctx: Context<SignMultisigProposal>) -> Result<()> {
         instructions::sign_multisig_proposal(ctx)
     }
 
-    pub fn execute_multisig_proposal(
-        ctx: Context<ExecuteMultisigProposal>,
-    ) -> Result<()> {
+    pub fn execute_multisig_proposal(ctx: Context<ExecuteMultisigProposal>) -> Result<()> {
         instructions::execute_multisig_proposal(ctx)
     }
 
-    pub fn cancel_multisig_proposal(
-        ctx: Context<CancelMultisigProposal>,
-    ) -> Result<()> {
+    pub fn cancel_multisig_proposal(ctx: Context<CancelMultisigProposal>) -> Result<()> {
         instructions::cancel_multisig_proposal(ctx)
     }
 
@@ -71,9 +65,7 @@ pub mod aura_lend {
     }
 
     // Timelock operations
-    pub fn initialize_timelock(
-        ctx: Context<InitializeTimelock>,
-    ) -> Result<()> {
+    pub fn initialize_timelock(ctx: Context<InitializeTimelock>) -> Result<()> {
         instructions::initialize_timelock(ctx)
     }
 
@@ -84,15 +76,11 @@ pub mod aura_lend {
         instructions::create_timelock_proposal(ctx, params)
     }
 
-    pub fn execute_timelock_proposal(
-        ctx: Context<ExecuteTimelockProposal>,
-    ) -> Result<()> {
+    pub fn execute_timelock_proposal(ctx: Context<ExecuteTimelockProposal>) -> Result<()> {
         instructions::execute_timelock_proposal(ctx)
     }
 
-    pub fn cancel_timelock_proposal(
-        ctx: Context<CancelTimelockProposal>,
-    ) -> Result<()> {
+    pub fn cancel_timelock_proposal(ctx: Context<CancelTimelockProposal>) -> Result<()> {
         instructions::cancel_timelock_proposal(ctx)
     }
 
@@ -103,9 +91,7 @@ pub mod aura_lend {
         instructions::update_timelock_delays(ctx, new_delays)
     }
 
-    pub fn cleanup_expired_proposals(
-        ctx: Context<CleanupExpiredProposals>,
-    ) -> Result<()> {
+    pub fn cleanup_expired_proposals(ctx: Context<CleanupExpiredProposals>) -> Result<()> {
         instructions::cleanup_expired_proposals(ctx)
     }
 
@@ -117,17 +103,11 @@ pub mod aura_lend {
         instructions::initialize_governance(ctx, params)
     }
 
-    pub fn grant_role(
-        ctx: Context<GrantRole>,
-        params: GrantRoleParams,
-    ) -> Result<()> {
+    pub fn grant_role(ctx: Context<GrantRole>, params: GrantRoleParams) -> Result<()> {
         instructions::grant_role(ctx, params)
     }
 
-    pub fn revoke_role(
-        ctx: Context<RevokeRole>,
-        target_holder: Pubkey,
-    ) -> Result<()> {
+    pub fn revoke_role(ctx: Context<RevokeRole>, target_holder: Pubkey) -> Result<()> {
         instructions::revoke_role(ctx, target_holder)
     }
 
@@ -138,9 +118,7 @@ pub mod aura_lend {
         instructions::delegate_permissions(ctx, params)
     }
 
-    pub fn cleanup_expired_roles(
-        ctx: Context<CleanupExpiredRoles>,
-    ) -> Result<()> {
+    pub fn cleanup_expired_roles(ctx: Context<CleanupExpiredRoles>) -> Result<()> {
         instructions::cleanup_expired_roles(ctx)
     }
 
@@ -276,7 +254,9 @@ pub mod aura_lend {
         instructions::migrate_governance(ctx)
     }
 
-    pub fn batch_migrate_reserves<'info>(ctx: Context<'_, '_, '_, 'info, BatchMigrateReserves<'info>>) -> Result<()> {
+    pub fn batch_migrate_reserves<'info>(
+        ctx: Context<'_, '_, '_, 'info, BatchMigrateReserves<'info>>,
+    ) -> Result<()> {
         instructions::batch_migrate_reserves(ctx)
     }
 

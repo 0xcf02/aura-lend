@@ -1,25 +1,25 @@
-use anchor_lang::prelude::*;
 use crate::constants::*;
 use crate::error::LendingError;
+use anchor_lang::prelude::*;
 
 /// Timelock controller for delayed execution of critical operations
 #[account]
 pub struct TimelockController {
     /// Version of the timelock controller
     pub version: u8,
-    
+
     /// The multisig that controls this timelock
     pub multisig: Pubkey,
-    
+
     /// Minimum delay for different operation types (in seconds)
     pub min_delays: Vec<TimelockDelay>,
-    
+
     /// List of active proposals awaiting execution
     pub active_proposals: Vec<Pubkey>,
-    
+
     /// Timestamp when controller was created
     pub created_at: i64,
-    
+
     /// Reserved space for future upgrades
     pub reserved: [u8; 128],
 }
@@ -27,7 +27,7 @@ pub struct TimelockController {
 impl TimelockController {
     /// Maximum number of active proposals
     pub const MAX_ACTIVE_PROPOSALS: usize = 50;
-    
+
     /// Account size calculation
     pub const SIZE: usize = 8 + // discriminator
         1 + // version
@@ -40,7 +40,7 @@ impl TimelockController {
     /// Create a new timelock controller
     pub fn new(multisig: Pubkey) -> Result<Self> {
         let clock = Clock::get()?;
-        
+
         // Initialize default delays for different operation types
         let min_delays = vec![
             TimelockDelay {
@@ -86,7 +86,7 @@ impl TimelockController {
                 delay_seconds: TIMELOCK_DELAY_HIGH, // 3 days
             },
         ];
-        
+
         Ok(Self {
             version: PROGRAM_VERSION,
             multisig,
@@ -96,7 +96,7 @@ impl TimelockController {
             reserved: [0; 128],
         })
     }
-    
+
     /// Get minimum delay for an operation type
     pub fn get_min_delay(&self, operation_type: TimelockOperationType) -> u64 {
         self.min_delays
@@ -105,21 +105,21 @@ impl TimelockController {
             .map(|d| d.delay_seconds)
             .unwrap_or(TIMELOCK_DELAY_DEFAULT)
     }
-    
+
     /// Add a proposal to active list
     pub fn add_active_proposal(&mut self, proposal: Pubkey) -> Result<()> {
         if self.active_proposals.len() >= Self::MAX_ACTIVE_PROPOSALS {
             return Err(LendingError::TooManyActiveProposals.into());
         }
-        
+
         if self.active_proposals.contains(&proposal) {
             return Err(LendingError::ProposalAlreadyActive.into());
         }
-        
+
         self.active_proposals.push(proposal);
         Ok(())
     }
-    
+
     /// Remove a proposal from active list
     pub fn remove_active_proposal(&mut self, proposal: &Pubkey) -> Result<()> {
         if let Some(index) = self.active_proposals.iter().position(|p| p == proposal) {
@@ -136,34 +136,34 @@ impl TimelockController {
 pub struct TimelockProposal {
     /// Version of the proposal
     pub version: u8,
-    
+
     /// The timelock controller this belongs to
     pub controller: Pubkey,
-    
+
     /// Type of operation
     pub operation_type: TimelockOperationType,
-    
+
     /// Serialized instruction data
     pub instruction_data: Vec<u8>,
-    
+
     /// Timestamp when proposal was created
     pub created_at: i64,
-    
+
     /// Timestamp when proposal can be executed
     pub execution_time: i64,
-    
+
     /// Status of the proposal
     pub status: TimelockStatus,
-    
+
     /// Account that created this proposal
     pub proposer: Pubkey,
-    
+
     /// Accounts that will be affected by this operation
     pub target_accounts: Vec<Pubkey>,
-    
+
     /// Hash of the operation data for validation
     pub operation_hash: [u8; 32],
-    
+
     /// Reserved space for future upgrades
     pub reserved: [u8; 64],
 }
@@ -171,10 +171,10 @@ pub struct TimelockProposal {
 impl TimelockProposal {
     /// Maximum size of instruction data
     pub const MAX_INSTRUCTION_SIZE: usize = 1024;
-    
+
     /// Maximum number of target accounts
     pub const MAX_TARGET_ACCOUNTS: usize = 10;
-    
+
     /// Account size calculation
     pub const SIZE: usize = 8 + // discriminator
         1 + // version
@@ -201,16 +201,17 @@ impl TimelockProposal {
         if instruction_data.len() > Self::MAX_INSTRUCTION_SIZE {
             return Err(LendingError::InstructionTooLarge.into());
         }
-        
+
         if target_accounts.len() > Self::MAX_TARGET_ACCOUNTS {
             return Err(LendingError::TooManyTargetAccounts.into());
         }
-        
+
         let clock = Clock::get()?;
-        let execution_time = clock.unix_timestamp
+        let execution_time = clock
+            .unix_timestamp
             .checked_add(delay_seconds as i64)
             .ok_or(LendingError::MathOverflow)?;
-            
+
         // Create hash of operation data for validation
         let mut hasher = std::collections::hash_map::DefaultHasher::new();
         use std::hash::{Hash, Hasher};
@@ -219,7 +220,7 @@ impl TimelockProposal {
         let operation_hash_u64 = hasher.finish();
         let mut operation_hash = [0u8; 32];
         operation_hash[0..8].copy_from_slice(&operation_hash_u64.to_le_bytes());
-        
+
         Ok(Self {
             version: PROGRAM_VERSION,
             controller,
@@ -234,44 +235,45 @@ impl TimelockProposal {
             reserved: [0; 64],
         })
     }
-    
+
     /// Check if proposal is ready for execution
     pub fn is_ready_for_execution(&self) -> Result<bool> {
         if self.status != TimelockStatus::Pending {
             return Ok(false);
         }
-        
+
         let clock = Clock::get()?;
         Ok(clock.unix_timestamp >= self.execution_time)
     }
-    
+
     /// Check if proposal is expired
     pub fn is_expired(&self) -> Result<bool> {
         let clock = Clock::get()?;
         // Proposals expire if not executed within 30 days of execution time
-        let expiry_time = self.execution_time
+        let expiry_time = self
+            .execution_time
             .checked_add(TIMELOCK_EXPIRY_PERIOD)
             .ok_or(LendingError::MathOverflow)?;
-        
+
         Ok(clock.unix_timestamp > expiry_time)
     }
-    
+
     /// Mark proposal as executed
     pub fn mark_executed(&mut self) -> Result<()> {
         if self.status != TimelockStatus::Pending {
             return Err(LendingError::ProposalNotPending.into());
         }
-        
+
         self.status = TimelockStatus::Executed;
         Ok(())
     }
-    
+
     /// Mark proposal as cancelled
     pub fn mark_cancelled(&mut self) -> Result<()> {
         if self.status != TimelockStatus::Pending {
             return Err(LendingError::ProposalNotPending.into());
         }
-        
+
         self.status = TimelockStatus::Cancelled;
         Ok(())
     }

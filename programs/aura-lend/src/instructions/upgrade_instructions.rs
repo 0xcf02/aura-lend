@@ -5,12 +5,7 @@ use anchor_lang::solana_program::{
     system_instruction,
 };
 
-use crate::{
-    constants::*,
-    error::LendingError,
-    state::market::Market,
-    utils::validate_authority,
-};
+use crate::{constants::*, error::LendingError, state::market::Market, utils::validate_authority};
 
 /// Set the upgrade authority of the program to a new authority (typically MultiSig)
 pub fn set_upgrade_authority(ctx: Context<SetUpgradeAuthority>) -> Result<()> {
@@ -45,7 +40,10 @@ pub fn set_upgrade_authority(ctx: Context<SetUpgradeAuthority>) -> Result<()> {
         &[],
     )?;
 
-    msg!("Program upgrade authority transferred to: {}", new_authority);
+    msg!(
+        "Program upgrade authority transferred to: {}",
+        new_authority
+    );
     Ok(())
 }
 
@@ -84,7 +82,10 @@ pub fn upgrade_program(ctx: Context<UpgradeProgram>) -> Result<()> {
         authority_seeds,
     )?;
 
-    msg!("Program successfully upgraded using buffer: {}", buffer_account);
+    msg!(
+        "Program successfully upgraded using buffer: {}",
+        buffer_account
+    );
     Ok(())
 }
 
