@@ -44,6 +44,9 @@ jobs:
           profile: minimal
           override: true
 
+      - name: Install rustfmt
+        run: rustup component add rustfmt
+
       - name: Install Solana CLI
         run: |
           sh -c "$(curl -sSfL https://release.solana.com/v${{ env.SOLANA_VERSION }}/install)"
