@@ -1,9 +1,9 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 import { AuraLend } from "../target/types/aura_lend";
-import { PublicKey, Keypair, SystemProgram, Transaction } from "@solana/web3.js";
-import { TOKEN_PROGRAM_ID, createMint, createAccount, mintTo } from "@solana/spl-token";
-import { assert, expect } from "chai";
+import { Keypair, PublicKey, SystemProgram, Transaction } from "@solana/web3.js";
+import { createAccount, createMint, mintTo, TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import { assert } from "chai";
 
 describe("Performance and Stress Tests", () => {
   const provider = anchor.AnchorProvider.env();
@@ -13,7 +13,7 @@ describe("Performance and Stress Tests", () => {
   
   let marketPubkey: PublicKey;
   let usdcMint: PublicKey;
-  let solReserve: PublicKey;
+  let _solReserve: PublicKey;
   let usdcReserve: PublicKey;
   
   // Performance tracking
@@ -42,7 +42,7 @@ describe("Performance and Stress Tests", () => {
       program.programId
     );
 
-    [solReserve] = PublicKey.findProgramAddressSync(
+    [_solReserve] = PublicKey.findProgramAddressSync(
       [Buffer.from("reserve"), PublicKey.default.toBuffer()],
       program.programId
     );
@@ -152,8 +152,8 @@ describe("Performance and Stress Tests", () => {
   });
 
   describe("Transaction Performance", () => {
-    let userKeypairs: Keypair[] = [];
-    let userTokenAccounts: PublicKey[] = [];
+    const userKeypairs: Keypair[] = [];
+    const userTokenAccounts: PublicKey[] = [];
     
     before(async () => {
       // Create multiple test users for stress testing
@@ -194,11 +194,11 @@ describe("Performance and Stress Tests", () => {
       const startTime = Date.now();
       
       try {
-        const user = userKeypairs[0];
+        const _user = userKeypairs[0];
         const userTokenAccount = userTokenAccounts[0];
         
         const [userCollateralAccount] = PublicKey.findProgramAddressSync(
-          [Buffer.from("user_collateral"), user.publicKey.toBuffer(), usdcMint.toBuffer()],
+          [Buffer.from("user_collateral"), _user.publicKey.toBuffer(), usdcMint.toBuffer()],
           program.programId
         );
 
@@ -207,12 +207,12 @@ describe("Performance and Stress Tests", () => {
           .accounts({
             market: marketPubkey,
             reserve: usdcReserve,
-            user: user.publicKey,
+            user: _user.publicKey,
             userTokenAccount: userTokenAccount,
             userCollateralAccount: userCollateralAccount,
             tokenProgram: TOKEN_PROGRAM_ID,
           })
-          .signers([user])
+          .signers([_user])
           .rpc();
 
         const endTime = Date.now();
@@ -315,7 +315,7 @@ describe("Performance and Stress Tests", () => {
       
       try {
         // Test a complex operation like liquidation calculation
-        const user = userKeypairs[0];
+        const _testUser = userKeypairs[0];
         
         // This would test compute unit usage in a real liquidation scenario
         console.log("Testing compute unit efficiency");

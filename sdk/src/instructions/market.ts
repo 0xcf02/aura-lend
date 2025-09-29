@@ -1,4 +1,4 @@
-import { Transaction, PublicKey, SystemProgram } from '@solana/web3.js';
+import { PublicKey, SystemProgram, Transaction } from '@solana/web3.js';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { AuraLendClient } from '../client';
 import { InitializeMarketParams, InitializeReserveParams } from '../types';

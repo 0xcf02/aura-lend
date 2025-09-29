@@ -1,4 +1,4 @@
-import { PublicKey, AccountInfo } from '@solana/web3.js';
+import { AccountInfo, PublicKey } from '@solana/web3.js';
 
 export interface ReserveConfigFlags {
   depositsDisabled: boolean;

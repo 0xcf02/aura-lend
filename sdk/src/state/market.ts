@@ -1,5 +1,4 @@
-import { PublicKey, AccountInfo } from '@solana/web3.js';
-import { AuraLendClient } from '../client';
+import { AccountInfo, PublicKey } from '@solana/web3.js';
 
 export interface MarketFlags {
   paused: boolean;

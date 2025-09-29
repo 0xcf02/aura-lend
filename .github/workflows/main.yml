@@ -56,6 +56,12 @@ jobs:
         run: npm install --force
         continue-on-error: true
 
+      - name: Check Rust formatting
+        run: cargo fmt --check
+
+      - name: Run TypeScript linting
+        run: npm run lint
+
       - name: Build Anchor program
         run: anchor build
 

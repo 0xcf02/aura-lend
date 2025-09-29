@@ -14,7 +14,7 @@ import {
 } from '@solana/spl-token';
 
 // Internal imports
-import { AuraLend, IDL } from './idl/aura_lend';
+import { IDL } from './idl/aura_lend';
 import { BorrowingInstructions } from './instructions/borrowing';
 import { LendingInstructions } from './instructions/lending';
 import { LiquidationInstructions } from './instructions/liquidation';
@@ -102,7 +102,7 @@ export class AuraLendClient {
 
     // Load program from IDL
     this.program = new Program(
-      IDL as any,
+      IDL as unknown,
       provider
     );
 

@@ -1,9 +1,9 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 import { AuraLend } from "../target/types/aura_lend";
-import { PublicKey, Keypair, SystemProgram } from "@solana/web3.js";
-import { TOKEN_PROGRAM_ID, createMint, createAccount, mintTo } from "@solana/spl-token";
-import { assert, expect } from "chai";
+import { Keypair, PublicKey, SystemProgram } from "@solana/web3.js";
+import { createAccount, createMint, mintTo, TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import { assert } from "chai";
 
 describe("aura-lend", () => {
   const provider = anchor.AnchorProvider.env();
@@ -14,17 +14,17 @@ describe("aura-lend", () => {
   // Test accounts
   let marketPubkey: PublicKey;
   let usdcMint: PublicKey;
-  let solReserve: PublicKey;
+  let _solReserve: PublicKey;
   let usdcReserve: PublicKey;
   let userKeypair: Keypair;
   let obligationPubkey: PublicKey;
-  
+
   // Test constants
   const USDC_DECIMALS = 6;
-  const SOL_DECIMALS = 9;
+  const _SOL_DECIMALS = 9;
   const INITIAL_USDC_AMOUNT = 1000 * 10 ** USDC_DECIMALS; // 1000 USDC
   const DEPOSIT_AMOUNT = 100 * 10 ** USDC_DECIMALS; // 100 USDC
-  const BORROW_AMOUNT = 1 * 10 ** SOL_DECIMALS; // 1 SOL
+  const _BORROW_AMOUNT = 1 * 10 ** _SOL_DECIMALS; // 1 SOL
 
   before(async () => {
     // Create test user
@@ -60,7 +60,7 @@ describe("aura-lend", () => {
       program.programId
     );
 
-    [solReserve] = PublicKey.findProgramAddressSync(
+    [_solReserve] = PublicKey.findProgramAddressSync(
       [Buffer.from("reserve"), PublicKey.default.toBuffer()], // Using default pubkey as SOL mint
       program.programId
     );
@@ -348,11 +348,11 @@ describe("aura-lend", () => {
 });
 
 // Helper functions for testing
-function sleep(ms: number): Promise<void> {
+function _sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-function calculateHealthFactor(
+function _calculateHealthFactor(
   collateralValueUSD: number,
   borrowedValueUSD: number,
   liquidationThreshold: number
@@ -361,7 +361,7 @@ function calculateHealthFactor(
   return (collateralValueUSD * liquidationThreshold) / borrowedValueUSD;
 }
 
-function calculateInterestRate(
+function _calculateInterestRate(
   baseRateBps: number,
   multiplierBps: number,
   jumpMultiplierBps: number,
@@ -369,13 +369,13 @@ function calculateInterestRate(
   currentUtilizationBps: number
 ): number {
   const BASE_BPS = 10000;
-  
+
   if (currentUtilizationBps <= optimalUtilizationBps) {
     return baseRateBps + (currentUtilizationBps * multiplierBps) / optimalUtilizationBps;
   } else {
     const excessUtilization = currentUtilizationBps - optimalUtilizationBps;
     const maxExcess = BASE_BPS - optimalUtilizationBps;
-    
+
     return baseRateBps + multiplierBps + (excessUtilization * jumpMultiplierBps) / maxExcess;
   }
 }

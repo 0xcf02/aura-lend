@@ -1,8 +1,8 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 import { AuraLend } from "../target/types/aura_lend";
-import { PublicKey, Keypair, SystemProgram } from "@solana/web3.js";
-import { TOKEN_PROGRAM_ID, createMint, createAccount, mintTo } from "@solana/spl-token";
+import { Keypair, PublicKey, SystemProgram } from "@solana/web3.js";
+import { createAccount, createMint, mintTo } from "@solana/spl-token";
 import { assert, expect } from "chai";
 
 describe("Security Tests", () => {
@@ -13,7 +13,7 @@ describe("Security Tests", () => {
   
   let marketPubkey: PublicKey;
   let usdcMint: PublicKey;
-  let solReserve: PublicKey;
+  let _solReserve: PublicKey;
   let usdcReserve: PublicKey;
   let attackerKeypair: Keypair;
   let userKeypair: Keypair;
@@ -52,7 +52,7 @@ describe("Security Tests", () => {
       program.programId
     );
 
-    [solReserve] = PublicKey.findProgramAddressSync(
+    [_solReserve] = PublicKey.findProgramAddressSync(
       [Buffer.from("reserve"), PublicKey.default.toBuffer()],
       program.programId
     );
@@ -282,7 +282,7 @@ describe("Security Tests", () => {
   describe("Math Overflow Protection", () => {
     it("should handle large number operations safely", async () => {
       // Test operations with very large numbers
-      const maxU64 = "18446744073709551615";
+      const _maxU64 = "18446744073709551615";
       
       try {
         // This should be handled safely without overflow

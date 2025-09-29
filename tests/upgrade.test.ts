@@ -1,10 +1,10 @@
 import * as anchor from "@project-serum/anchor";
 import { Program } from "@project-serum/anchor";
 import { 
-  PublicKey, 
   Keypair, 
-  SystemProgram,
-  LAMPORTS_PER_SOL 
+  LAMPORTS_PER_SOL, 
+  PublicKey,
+  SystemProgram 
 } from "@solana/web3.js";
 import { expect } from "chai";
 import { AuraLend } from "../target/types/aura_lend";
@@ -19,13 +19,13 @@ describe("Program Upgradability Tests", () => {
 
   // Test accounts
   let marketPda: PublicKey;
-  let marketBump: number;
+  let _marketBump: number;
   let multisigPda: PublicKey;
-  let multisigBump: number;
+  let _multisigBump: number;
   let timelockPda: PublicKey;
-  let timelockBump: number;
+  let _timelockBump: number;
   let governancePda: PublicKey;
-  let governanceBump: number;
+  let _governanceBump: number;
 
   // Test signatories for multisig
   const signatories = [
@@ -36,22 +36,22 @@ describe("Program Upgradability Tests", () => {
 
   before(async () => {
     // Derive PDAs
-    [marketPda, marketBump] = await PublicKey.findProgramAddress(
+    [marketPda, _marketBump] = await PublicKey.findProgramAddress(
       [Buffer.from("market")],
       program.programId
     );
 
-    [multisigPda, multisigBump] = await PublicKey.findProgramAddress(
+    [multisigPda, _multisigBump] = await PublicKey.findProgramAddress(
       [Buffer.from("multisig"), marketPda.toBuffer()],
       program.programId
     );
 
-    [timelockPda, timelockBump] = await PublicKey.findProgramAddress(
+    [timelockPda, _timelockBump] = await PublicKey.findProgramAddress(
       [Buffer.from("timelock"), marketPda.toBuffer()],
       program.programId
     );
 
-    [governancePda, governanceBump] = await PublicKey.findProgramAddress(
+    [governancePda, _governanceBump] = await PublicKey.findProgramAddress(
       [Buffer.from("governance"), marketPda.toBuffer()],
       program.programId
     );

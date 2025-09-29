@@ -1,7 +1,7 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 import { AuraLend } from "../target/types/aura_lend";
-import { PublicKey, Keypair, SystemProgram } from "@solana/web3.js";
+import { Keypair, PublicKey, SystemProgram } from "@solana/web3.js";
 import { assert, expect } from "chai";
 
 describe("Governance System Tests", () => {
@@ -312,7 +312,7 @@ describe("Governance System Tests", () => {
         await program.methods
           .initializeGovernance({
             maxRoles: 100,
-            availablePermissions: 0xFFFFFFFFFFFFFFFF, // All permissions
+            availablePermissions: "18446744073709551615", // All permissions
           })
           .accounts({
             governance: governancePubkey,

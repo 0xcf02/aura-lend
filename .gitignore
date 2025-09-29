@@ -89,3 +89,7 @@ __pycache__/
 
 # Local configuration files
 .local
+
+# Markdown files (except README.md)
+*.md
+!README.md
